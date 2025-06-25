@@ -1,0 +1,290 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ScrollView
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="16dp">
+
+        <TextView
+            android:id="@+id/dailyChangesTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Modifications Quotidiennes"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:textColor="#2C3E50"
+            android:layout_marginBottom="20dp"
+            android:gravity="center_horizontal"
+            android:layout_gravity="center_horizontal"/>
+
+        <!-- Annuler un Cours -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            app:cardCornerRadius="15dp"
+            app:cardElevation="8dp"
+            app:cardBackgroundColor="@android:color/white">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Annuler un Cours :"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="#34495E"
+                    android:layout_marginBottom="15dp"/>
+
+                <EditText
+                    android:id="@+id/cancelCourseInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:hint="Nom du Cours à annuler"
+                    android:paddingStart="15dp"
+                    android:paddingEnd="15dp"
+                    android:background="@drawable/rounded_edittext_background"
+                    android:layout_marginBottom="10dp"
+                    android:inputType="textCapWords"/>
+
+                <EditText
+                    android:id="@+id/cancelTimeInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:hint="Heure du Cours (ex: 09:00)"
+                    android:paddingStart="15dp"
+                    android:paddingEnd="15dp"
+                    android:background="@drawable/rounded_edittext_background"
+                    android:layout_marginBottom="15dp"
+                    android:inputType="time"/>
+
+                <Button
+                    android:id="@+id/cancelClassButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Annuler ce Cours"
+                    android:backgroundTint="#E74C3C"
+                    android:textColor="@android:color/white"
+                    android:paddingStart="25dp"
+                    android:paddingEnd="25dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"
+                    app:cornerRadius="10dp"
+                    android:layout_gravity="center_horizontal"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Modifier un Cours Existant -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            app:cardCornerRadius="15dp"
+            app:cardElevation="8dp"
+            app:cardBackgroundColor="@android:color/white">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Modifier un Cours Existant :"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="#34495E"
+                    android:layout_marginBottom="15dp"/>
+
+                <EditText
+                    android:id="@+id/modifyOriginalCourseInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:hint="Cours Original (ex: Maths)"
+                    android:paddingStart="15dp"
+                    android:paddingEnd="15dp"
+                    android:background="@drawable/rounded_edittext_background"
+                    android:layout_marginBottom="10dp"
+                    android:inputType="textCapWords"/>
+
+                <EditText
+                    android:id="@+id/modifyOriginalTimeInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:hint="Heure Originale (ex: 10:00)"
+                    android:paddingStart="15dp"
+                    android:paddingEnd="15dp"
+                    android:background="@drawable/rounded_edittext_background"
+                    android:layout_marginBottom="10dp"
+                    android:inputType="time"/>
+
+                <EditText
+                    android:id="@+id/modifyNewRoomInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:hint="Nouvelle Salle (laisser vide si inchangé)"
+                    android:paddingStart="15dp"
+                    android:paddingEnd="15dp"
+                    android:background="@drawable/rounded_edittext_background"
+                    android:layout_marginBottom="10dp"
+                    android:inputType="text"/>
+
+                <EditText
+                    android:id="@+id/modifyNewCourseNameInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:hint="Nouveau Nom du Cours (laisser vide si inchangé)"
+                    android:paddingStart="15dp"
+                    android:paddingEnd="15dp"
+                    android:background="@drawable/rounded_edittext_background"
+                    android:layout_marginBottom="10dp"
+                    android:inputType="textCapWords"/>
+
+                <EditText
+                    android:id="@+id/modifyNewCourseTimeInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:hint="Nouvelle Heure (laisser vide si inchangé)"
+                    android:paddingStart="15dp"
+                    android:paddingEnd="15dp"
+                    android:background="@drawable/rounded_edittext_background"
+                    android:layout_marginBottom="15dp"
+                    android:inputType="time"/>
+
+                <Button
+                    android:id="@+id/applyModificationButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Appliquer Modification"
+                    android:backgroundTint="#F39C12"
+                    android:textColor="@android:color/white"
+                    android:paddingStart="25dp"
+                    android:paddingEnd="25dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"
+                    app:cornerRadius="10dp"
+                    android:layout_gravity="center_horizontal"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+        <!-- Ajouter un Nouveau Cours Ponctuel -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp"
+            app:cardCornerRadius="15dp"
+            app:cardElevation="8dp"
+            app:cardBackgroundColor="@android:color/white">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="20dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Ajouter un Nouveau Cours Ponctuel :"
+                    android:textSize="20sp"
+                    android:textStyle="bold"
+                    android:textColor="#34495E"
+                    android:layout_marginBottom="15dp"/>
+
+                <EditText
+                    android:id="@+id/addNewCourseNameInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:hint="Nom du Nouveau Cours"
+                    android:paddingStart="15dp"
+                    android:paddingEnd="15dp"
+                    android:background="@drawable/rounded_edittext_background"
+                    android:layout_marginBottom="10dp"
+                    android:inputType="textCapWords"/>
+
+                <EditText
+                    android:id="@+id/addNewCourseTimeInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:hint="Heure du Nouveau Cours (ex: 14:00)"
+                    android:paddingStart="15dp"
+                    android:paddingEnd="15dp"
+                    android:background="@drawable/rounded_edittext_background"
+                    android:layout_marginBottom="10dp"
+                    android:inputType="time"/>
+
+                <EditText
+                    android:id="@+id/addNewRoomInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="50dp"
+                    android:hint="Salle du Nouveau Cours"
+                    android:paddingStart="15dp"
+                    android:paddingEnd="15dp"
+                    android:background="@drawable/rounded_edittext_background"
+                    android:layout_marginBottom="15dp"
+                    android:inputType="text"/>
+
+                <Button
+                    android:id="@+id/addNewCourseButton"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Ajouter Nouveau Cours"
+                    android:backgroundTint="#27AE60"
+                    android:textColor="@android:color/white"
+                    android:paddingStart="25dp"
+                    android:paddingEnd="25dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"
+                    app:cornerRadius="10dp"
+                    android:layout_gravity="center_horizontal"/>
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+
+        <!-- Changements Appliqués pour Aujourd'hui -->
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Changements Appliqués pour Aujourd'hui :"
+            android:textSize="20sp"
+            android:textStyle="bold"
+            android:textColor="#2C3E50"
+            android:layout_marginBottom="15dp"
+            android:layout_gravity="center_horizontal"/>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/currentChangesRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:nestedScrollingEnabled="false"/>
+
+        <Button
+            android:id="@+id/resetDailyChangesButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Réinitialiser Changements pour Aujourd'hui"
+            android:backgroundTint="#E67E22"
+            android:textColor="@android:color/white"
+            android:paddingStart="25dp"
+            android:paddingEnd="25dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            app:cornerRadius="10dp"
+            android:layout_gravity="center_horizontal"
+            android:layout_marginTop="20dp"/>
+
+    </LinearLayout>
+</ScrollView>
