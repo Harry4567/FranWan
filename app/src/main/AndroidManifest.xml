@@ -2,22 +2,21 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Permission pour les notifications (à partir d'Android 13 / API 33) -->
+    <!-- Permissions -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
-    <!-- Permission optionnelle pour que les alarmes persistent après un redémarrage de l'appareil -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
-
 
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:fullBackupContent="@xml/backup_rules"
-        android:icon="@mipmap/ic_launcher"
+        android:icon="@mipmap/ic_franwan_launcher"
         android:label="@string/app_name"
-        android:roundIcon="@mipmap/ic_launcher_round"
+        android:roundIcon="@mipmap/ic_franwan_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.FranWan">
 
+        <!-- Activité principale -->
         <activity
             android:name=".MainActivity"
             android:exported="true" >
@@ -27,18 +26,15 @@
             </intent-filter>
         </activity>
 
-        <!-- Déclaration du BroadcastReceiver pour les notifications -->
+        <!-- BroadcastReceiver pour les notifications -->
         <receiver
             android:name=".NotificationReceiver"
             android:enabled="true"
             android:exported="true">
-            <!-- Ajout d'un intent-filter pour RECEIVE_BOOT_COMPLETED si vous utilisez cette permission -->
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
             </intent-filter>
         </receiver>
-
-        <!-- D'autres activités ou composants peuvent être ajoutés ici -->
 
     </application>
 </manifest>
