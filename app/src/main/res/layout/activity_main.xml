@@ -26,7 +26,6 @@
             android:layout_marginBottom="20dp"
             android:gravity="center_horizontal"/>
 
-        <!-- Carte pour le prochain cours -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -99,7 +98,6 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
-        <!-- Boutons de navigation -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -137,7 +135,35 @@
                 app:cornerRadius="10dp"/>
         </LinearLayout>
 
-        <!-- Section Emploi du Temps pour Aujourd'hui -->
+        <Button
+            android:id="@+id/setDailyReminderTimeButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Définir l'heure du rappel quotidien"
+            android:backgroundTint="#8E44AD"
+            android:textColor="@android:color/white"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            app:cornerRadius="10dp"
+            android:layout_marginBottom="12dp"/>
+
+        <Button
+            android:id="@+id/requestBatteryOptimizationButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Vérifier Optimisation Batterie"
+            android:backgroundTint="#FFC107"
+            android:textColor="@android:color/black"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
+            android:paddingTop="12dp"
+            android:paddingBottom="12dp"
+            app:cornerRadius="10dp"
+            android:layout_marginBottom="24dp"/>
+
+
         <TextView
             android:id="@+id/todayScheduleTitle"
             android:layout_width="wrap_content"
@@ -164,7 +190,5 @@
             android:textSize="16sp"
             android:textColor="#95A5A6"
             android:layout_marginTop="10dp"
-            android:visibility="gone" /> <!-- Sera visible si pas de cours -->
-
-    </LinearLayout>
+            android:visibility="gone" /> </LinearLayout>
 </ScrollView>

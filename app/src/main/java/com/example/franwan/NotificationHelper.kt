@@ -1,4 +1,4 @@
-package com.example.franwan // Assurez-vous que ce package correspond à votre projet
+package com.example.franwan
 
 import android.app.AlarmManager
 import android.app.NotificationChannel
@@ -16,19 +16,29 @@ import com.google.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-import com.example.franwan.NotificationReceiver // Assurez-vous que cet import est correct
+import android.util.Log
 
-// Constantes pour les notifications
-const val CHANNEL_ID = "class_reminder_channel"
-const val CHANNEL_NAME = "Rappels de Cours"
-const val CHANNEL_DESCRIPTION = "Notifications pour vos prochains cours"
-const val NOTIFICATION_ID = 101
+// Constantes pour les notifications de rappel de cours
+const val CLASS_REMINDER_CHANNEL_ID = "class_reminder_channel"
+const val CLASS_REMINDER_CHANNEL_NAME = "Rappels de Cours"
+const val CLASS_REMINDER_CHANNEL_DESCRIPTION = "Notifications pour vos prochains cours"
+const val CLASS_REMINDER_NOTIFICATION_ID = 101 // ID unique pour la notification de rappel de cours
 
-// Clés pour l'Intent du BroadcastReceiver
+// Constantes pour la notification quotidienne de modification
+const val DAILY_MOD_CHANNEL_ID = "daily_mod_channel"
+const val DAILY_MOD_CHANNEL_NAME = "Modifications Quotidiennes" // <--- C'est ici qu'elles sont définies
+const val DAILY_MOD_CHANNEL_DESCRIPTION = "Rappel pour les modifications d'emploi du temps du jour" // <--- C'est ici qu'elles sont définies
+const val DAILY_MOD_NOTIFICATION_ID = 102 // ID unique pour la notification de modification quotidienne
+const val EXTRA_OPEN_DAILY_CHANGES = "open_daily_changes_dialog" // Clé pour l'Intent
+
+// Clés pour l'Intent du BroadcastReceiver (pour les rappels de cours)
 const val EXTRA_COURSE_NAME = "extra_course_name"
 const val EXTRA_COURSE_TIME = "extra_course_time"
 const val EXTRA_COURSE_ROOM = "extra_course_room"
 const val EXTRA_COURSE_DAY = "extra_course_day"
+
+// NOUVELLE CONSTANTE : Nom du cours invisible pour le rappel quotidien
+const val INTERNAL_DAILY_REMINDER_COURSE_NAME = "INTERNAL_DAILY_REMINDER_COURSE"
 
 
 object NotificationHelper {
@@ -38,60 +48,74 @@ object NotificationHelper {
         "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"
     )
 
-    // Fonction pour créer le canal de notification (à appeler une seule fois, par exemple dans MainActivity.onCreate)
-    fun createNotificationChannel(context: Context) {
+    // Fonction pour créer les canaux de notification (à appeler une seule fois, par exemple dans MainActivity.onCreate)
+    fun createNotificationChannels(context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val importance = NotificationManager.IMPORTANCE_HIGH
-            val channel = NotificationChannel(CHANNEL_ID, CHANNEL_NAME, importance).apply {
-                description = CHANNEL_DESCRIPTION
+            // Canal pour les rappels de cours
+            val classReminderChannel = NotificationChannel(CLASS_REMINDER_CHANNEL_ID, CLASS_REMINDER_CHANNEL_NAME, NotificationManager.IMPORTANCE_HIGH).apply {
+                description = CLASS_REMINDER_CHANNEL_DESCRIPTION
                 enableLights(true)
                 lightColor = Color.BLUE
                 enableVibration(true)
             }
+
+            // Canal pour la notification quotidienne de modification
+            val dailyModChannel = NotificationChannel(DAILY_MOD_CHANNEL_ID, DAILY_MOD_CHANNEL_NAME, NotificationManager.IMPORTANCE_DEFAULT).apply {
+                description = DAILY_MOD_CHANNEL_DESCRIPTION
+                enableLights(true)
+                lightColor = Color.GREEN
+                enableVibration(true)
+            }
+
             val notificationManager: NotificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
+            notificationManager.createNotificationChannel(classReminderChannel)
+            notificationManager.createNotificationChannel(dailyModChannel)
+            Log.d("NotificationHelper", "Canaux de notification créés.")
         }
     }
 
     // Fonction pour afficher une notification (appelée par le BroadcastReceiver)
-    fun showNotification(context: Context, title: String, message: String, courseName: String, roomName: String) {
-        // Cette vérification est essentielle pour Android 13+
+    fun showNotification(context: Context, notificationId: Int, channelId: String, title: String, message: String, courseName: String, roomName: String) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (context.checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) !=
                 android.content.pm.PackageManager.PERMISSION_GRANTED
             ) {
-                // Permission non accordée, ne peut pas notifier.
+                Log.w("NotificationHelper", "Permission POST_NOTIFICATIONS non accordée. Impossible d'afficher la notification.")
                 return
             }
         }
 
         val intent = Intent(context, MainActivity::class.java).apply {
             flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+            if (notificationId == DAILY_MOD_NOTIFICATION_ID) {
+                putExtra(EXTRA_OPEN_DAILY_CHANGES, true)
+            }
         }
         val pendingIntent: PendingIntent = PendingIntent.getActivity(
             context,
-            0,
+            notificationId, // Utiliser l'ID de notification comme request code pour l'Intent
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(context, channelId)
             .setSmallIcon(android.R.drawable.ic_dialog_info) // Remplacez par votre icône d'application si vous en avez une
             .setContentTitle(title)
             .setContentText(message)
-            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setPriority(NotificationCompat.PRIORITY_HIGH) // Priorité élevée pour les rappels de cours, normale pour le daily mod
             .setCategory(NotificationCompat.CATEGORY_REMINDER)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
             .setStyle(NotificationCompat.BigTextStyle().bigText(message))
 
         with(NotificationManagerCompat.from(context)) {
-            notify(NOTIFICATION_ID, builder.build())
+            notify(notificationId, builder.build())
+            Log.d("NotificationHelper", "Notification (ID: $notificationId) affichée: '$title'")
         }
     }
 
-    // Fonction principale pour planifier la prochaine notification
+    // Fonction principale pour planifier la prochaine notification (cours ou rappel quotidien)
     fun scheduleNextClassNotification(context: Context) {
         val sharedPreferences = context.getSharedPreferences("ClassSchedulerApp", Context.MODE_PRIVATE)
         val scheduleJson = sharedPreferences.getString("classSchedule", null)
@@ -110,11 +134,11 @@ object NotificationHelper {
         }
 
         val now = Calendar.getInstance()
-        val currentDayIndex = now.get(Calendar.DAY_OF_WEEK) - 1
 
-        var upcomingClasses = mutableListOf<ClassItem>()
+        var upcomingEvents = mutableListOf<ClassItem>() // Renommé pour inclure les rappels quotidiens
 
-        for (i in 0..7) { // Regarder aujourd'hui et les 6 prochains jours
+        // 1. Ajouter les cours de l'emploi du temps principal et les changements quotidiens
+        for (i in 0..7) { // Parcourir les 7 prochains jours
             val targetCalendar = Calendar.getInstance().apply {
                 add(Calendar.DAY_OF_YEAR, i)
             }
@@ -123,7 +147,8 @@ object NotificationHelper {
 
             var dailyScheduleForTargetDay = schedule.filter { it.day == targetDayName }.toMutableList()
 
-            if (i == 0) { // Uniquement pour aujourd'hui, appliquer les changements quotidiens
+            // Appliquer les changements quotidiens seulement pour le jour actuel (i == 0)
+            if (i == 0) {
                 dailyChanges[targetDayName]?.forEach { change ->
                     when (change.type) {
                         "cancel" -> {
@@ -162,53 +187,95 @@ object NotificationHelper {
                     set(Calendar.MILLISECOND, 0)
                 }
 
-                if (classCalendar.timeInMillis <= now.timeInMillis && i == 0) {
-                    // C'est un cours passé pour aujourd'hui, on l'ignore pour la planification future
-                } else {
-                    upcomingClasses.add(classItem.copy(dateTime = classCalendar.timeInMillis))
+                if (classCalendar.timeInMillis > now.timeInMillis) { // Seulement les cours futurs
+                    upcomingEvents.add(classItem.copy(dateTime = classCalendar.timeInMillis))
                 }
             }
         }
 
-        upcomingClasses.sortBy { it.dateTime }
+        // 2. Ajouter l'alarme de rappel quotidien comme un "cours invisible"
+        val dailyReminderHour = sharedPreferences.getInt("dailyReminderHour", -1) // -1 pour indiquer non défini
+        val dailyReminderMinute = sharedPreferences.getInt("dailyReminderMinute", -1)
 
-        val nextClassToNotify = upcomingClasses.firstOrNull {
-            val timeDiff = it.dateTime - now.timeInMillis
-            timeDiff > TimeUnit.SECONDS.toMillis(10) && timeDiff <= TimeUnit.MINUTES.toMillis(5) // Cours dans 10s à 5min
-        } ?: upcomingClasses.firstOrNull { // Si aucun dans les 5min, trouver le prochain tout court pour le planifier
-            it.dateTime > now.timeInMillis
+        if (dailyReminderHour != -1 && dailyReminderMinute != -1) {
+            val dailyReminderCalendar = Calendar.getInstance().apply {
+                timeInMillis = System.currentTimeMillis() // Commence à l'heure actuelle
+                set(Calendar.HOUR_OF_DAY, dailyReminderHour)
+                set(Calendar.MINUTE, dailyReminderMinute)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+
+            // Si l'heure du rappel quotidien est déjà passée pour aujourd'hui, planifier pour demain
+            if (dailyReminderCalendar.timeInMillis <= now.timeInMillis) {
+                dailyReminderCalendar.add(Calendar.DAY_OF_YEAR, 1)
+                Log.d("NotificationHelper", "Rappel quotidien interne: heure passée pour aujourd'hui, planifié pour demain.")
+            }
+
+            upcomingEvents.add(ClassItem(
+                day = daysOfWeek[dailyReminderCalendar.get(Calendar.DAY_OF_WEEK) - 1], // Jour réel du rappel
+                time = String.format("%02d:%02d", dailyReminderHour, dailyReminderMinute),
+                course = INTERNAL_DAILY_REMINDER_COURSE_NAME, // Nom spécial pour le reconnaître
+                room = "", // Pas de salle
+                dateTime = dailyReminderCalendar.timeInMillis
+            ))
+            Log.d("NotificationHelper", "Rappel quotidien interne ajouté à la liste des événements à venir pour: ${SimpleDateFormat("dd/MM HH:mm:ss", Locale.getDefault()).format(Date(dailyReminderCalendar.timeInMillis))}")
         }
 
-        cancelExistingNotificationAlarm(context) // Annuler toute alarme précédente pour éviter les duplications
+        upcomingEvents.sortBy { it.dateTime } // Trier tous les événements par date/heure
 
-        if (nextClassToNotify != null) {
+        val nextEventToNotify = upcomingEvents.firstOrNull() // Le premier est le plus proche
+
+        // Annuler TOUTES les alarmes précédentes (cours et quotidien)
+        cancelExistingNotificationAlarm(context, CLASS_REMINDER_NOTIFICATION_ID)
+        cancelExistingNotificationAlarm(context, DAILY_MOD_NOTIFICATION_ID)
+
+
+        if (nextEventToNotify != null) {
             val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
-            // Calculer l'heure de la notification (5 minutes avant le cours)
-            val notificationTime = nextClassToNotify.dateTime - TimeUnit.MINUTES.toMillis(5)
+            var triggerAtMillis = nextEventToNotify.dateTime
+            var notificationId = CLASS_REMINDER_NOTIFICATION_ID
+            var channelId = CLASS_REMINDER_CHANNEL_ID
 
-            val triggerAtMillis = if (notificationTime <= now.timeInMillis) {
-                // Si la notification aurait dû se déclencher il y a peu et que le cours est à venir, la déclencher bientôt
-                if (nextClassToNotify.dateTime > now.timeInMillis && (nextClassToNotify.dateTime - now.timeInMillis) < TimeUnit.MINUTES.toMillis(10) ) {
-                    now.timeInMillis + TimeUnit.SECONDS.toMillis(5) // Déclencher dans 5 secondes
-                } else {
-                    // Trop tard pour notifier ce cours ou cours très lointain
-                    return
-                }
+            // Ajustement pour les rappels de cours (5 minutes avant)
+            if (nextEventToNotify.course != INTERNAL_DAILY_REMINDER_COURSE_NAME) {
+                triggerAtMillis -= TimeUnit.MINUTES.toMillis(5)
+                Log.d("NotificationHelper", "Rappel de cours: déclenchement ajusté 5 minutes avant.")
             } else {
-                notificationTime
+                // C'est le rappel quotidien invisible
+                notificationId = DAILY_MOD_NOTIFICATION_ID
+                channelId = DAILY_MOD_CHANNEL_ID // Utiliser le canal dédié pour le daily mod
+                Log.d("NotificationHelper", "Rappel quotidien invisible: déclenchement à l'heure exacte.")
+            }
+
+            // Si l'heure de notification est déjà passée ou est trop proche (moins de 10 secondes),
+            // mais que l'événement lui-même est encore dans le futur, déclencher la notification immédiatement.
+            val nowMillis = now.timeInMillis
+            if (triggerAtMillis <= nowMillis) {
+                if (nextEventToNotify.dateTime > nowMillis + TimeUnit.SECONDS.toMillis(5)) {
+                    triggerAtMillis = nowMillis + TimeUnit.SECONDS.toMillis(5) // Déclencher dans 5 secondes
+                    Log.d("NotificationHelper", "Notification pour '${nextEventToNotify.course}' ajustée à 5 secondes (manquée ou trop proche).")
+                } else {
+                    Log.d("NotificationHelper", "Événement '${nextEventToNotify.course}' déjà passé ou trop proche pour notification. Ignoré la planification.")
+                    return // Ne pas planifier si l'événement est déjà passé ou sur le point de passer
+                }
             }
 
             val intent = Intent(context, NotificationReceiver::class.java).apply {
-                putExtra(EXTRA_COURSE_NAME, nextClassToNotify.course)
-                putExtra(EXTRA_COURSE_TIME, nextClassToNotify.time)
-                putExtra(EXTRA_COURSE_ROOM, nextClassToNotify.room)
-                putExtra(EXTRA_COURSE_DAY, nextClassToNotify.day)
+                putExtra(EXTRA_COURSE_NAME, nextEventToNotify.course)
+                putExtra(EXTRA_COURSE_TIME, nextEventToNotify.time)
+                putExtra(EXTRA_COURSE_ROOM, nextEventToNotify.room)
+                putExtra(EXTRA_COURSE_DAY, nextEventToNotify.day)
+                // Si c'est la notification quotidienne, ajouter l'extra pour ouvrir le dialogue
+                if (nextEventToNotify.course == INTERNAL_DAILY_REMINDER_COURSE_NAME) {
+                    putExtra(EXTRA_OPEN_DAILY_CHANGES, true)
+                }
             }
 
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
-                NOTIFICATION_ID,
+                notificationId, // Utiliser l'ID correct pour le PendingIntent
                 intent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
@@ -218,24 +285,37 @@ object NotificationHelper {
             } else {
                 alarmManager.setExact(AlarmManager.RTC_WAKEUP, triggerAtMillis, pendingIntent)
             }
+            Log.d("NotificationHelper", "Alarme planifiée pour '${nextEventToNotify.course}' (ID: $notificationId) à ${SimpleDateFormat("dd/MM HH:mm:ss", Locale.getDefault()).format(Date(triggerAtMillis))}")
         } else {
-            cancelExistingNotificationAlarm(context)
+            Log.d("NotificationHelper", "Aucun événement à venir pour la planification de notification. Annulation des alarmes existantes.")
+            cancelExistingNotificationAlarm(context, CLASS_REMINDER_NOTIFICATION_ID)
+            cancelExistingNotificationAlarm(context, DAILY_MOD_NOTIFICATION_ID)
         }
     }
 
-    // Annuler une alarme de notification existante
-    fun cancelExistingNotificationAlarm(context: Context) {
+    // Annuler une alarme de notification existante (maintenant avec un ID pour spécifier laquelle)
+    fun cancelExistingNotificationAlarm(context: Context, notificationId: Int) {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, NotificationReceiver::class.java)
+
+        // L'Intent doit correspondre exactement à celui utilisé pour la planification pour pouvoir l'annuler
+        // Pour la notification quotidienne, il faut aussi inclure l'extra
+        if (notificationId == DAILY_MOD_NOTIFICATION_ID) {
+            intent.putExtra(EXTRA_OPEN_DAILY_CHANGES, true)
+            // L'action n'est plus nécessaire car nous utilisons EXTRA_OPEN_DAILY_CHANGES pour différencier
+            // et le nom de cours interne.
+        }
+
         val pendingIntent = PendingIntent.getBroadcast(
             context,
-            NOTIFICATION_ID,
+            notificationId,
             intent,
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE // FLAG_NO_CREATE pour ne pas créer si elle n'existe pas
         )
         pendingIntent?.let {
             alarmManager.cancel(it)
-            it.cancel()
-        }
+            it.cancel() // Annule le PendingIntent lui-même
+            Log.d("NotificationHelper", "Alarme de notification (ID: $notificationId) existante annulée.")
+        } ?: Log.d("NotificationHelper", "Aucune alarme (ID: $notificationId) existante à annuler ou PendingIntent non trouvé.")
     }
 }

@@ -1,18 +1,25 @@
-package com.example.franwan // Assurez-vous que ce package correspond à votre projet
+package com.example.franwan
 
 import android.app.AlertDialog
+import android.app.TimePickerDialog
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
-import android.graphics.Color // Importez la classe Color ici
+import android.graphics.Color
+import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
+import android.os.PowerManager
+import android.provider.Settings
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
+import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.google.gson.Gson
@@ -20,7 +27,6 @@ import com.google.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-import androidx.core.content.ContextCompat
 import android.util.Log
 
 // Modèle de données pour un cours
@@ -45,6 +51,9 @@ data class DailyChange(
 
 class MainActivity : AppCompatActivity() {
 
+    // NOUVELLE CONSTANTE : Nom du cours invisible pour le rappel quotidien
+    private val INTERNAL_DAILY_REMINDER_COURSE_NAME = "INTERNAL_DAILY_REMINDER_COURSE"
+
     // Vues de l'interface utilisateur
     private lateinit var nextCourseText: TextView
     private lateinit var nextCourseTime: TextView
@@ -52,9 +61,11 @@ class MainActivity : AppCompatActivity() {
     private lateinit var simulateNotificationButton: Button
     private lateinit var manageScheduleButton: Button
     private lateinit var dailyChangesButton: Button
+    private lateinit var setDailyReminderTimeButton: Button
     private lateinit var todayScheduleTitle: TextView
     private lateinit var todayScheduleRecyclerView: RecyclerView
     private lateinit var noClassTodayText: TextView
+    private lateinit var requestBatteryOptimizationButton: Button // Nouveau bouton
 
     // Adaptateur pour le RecyclerView de l'emploi du temps du jour
     private lateinit var todayScheduleAdapter: ClassAdapter
@@ -87,12 +98,14 @@ class MainActivity : AppCompatActivity() {
         if (isGranted) {
             Toast.makeText(this, "Permission de notification accordée !", Toast.LENGTH_SHORT).show()
             NotificationHelper.scheduleNextClassNotification(this)
+            Log.d("MainActivity", "Permission POST_NOTIFICATIONS accordée. Notifications planifiées.")
         } else {
             AlertDialog.Builder(this)
                 .setTitle("Permission de notification refusée")
                 .setMessage("Pour recevoir des rappels de cours, veuillez activer les notifications pour cette application dans les paramètres de votre téléphone.")
                 .setPositiveButton("OK", null)
                 .show()
+            Log.d("MainActivity", "Permission POST_NOTIFICATIONS refusée.")
         }
     }
 
@@ -106,39 +119,99 @@ class MainActivity : AppCompatActivity() {
         simulateNotificationButton = findViewById(R.id.simulateNotificationButton)
         manageScheduleButton = findViewById(R.id.manageScheduleButton)
         dailyChangesButton = findViewById(R.id.dailyChangesButton)
+        setDailyReminderTimeButton = findViewById(R.id.setDailyReminderTimeButton)
         todayScheduleTitle = findViewById(R.id.todayScheduleTitle)
         todayScheduleRecyclerView = findViewById(R.id.todayScheduleRecyclerView)
         noClassTodayText = findViewById(R.id.noClassTodayText)
+        requestBatteryOptimizationButton = findViewById(R.id.requestBatteryOptimizationButton) // Initialisation du nouveau bouton
 
         sharedPreferences = getSharedPreferences("ClassSchedulerApp", Context.MODE_PRIVATE)
 
         loadData()
 
         todayScheduleRecyclerView.layoutManager = LinearLayoutManager(this)
-        todayScheduleAdapter = ClassAdapter(mutableListOf(), false) { _, _ -> /* Pas d'action de suppression dans la vue principale */ }
+        // Passer le nom du cours invisible à l'adaptateur pour qu'il puisse le filtrer
+        todayScheduleAdapter = ClassAdapter(mutableListOf(), false, INTERNAL_DAILY_REMINDER_COURSE_NAME) { _, _ -> /* Pas d'action de suppression dans la vue principale */ }
         todayScheduleRecyclerView.adapter = todayScheduleAdapter
 
         requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
-        NotificationHelper.createNotificationChannel(this)
+        NotificationHelper.createNotificationChannels(this)
 
         simulateNotificationButton.setOnClickListener {
+            // Simuler une notification de cours
             NotificationHelper.showNotification(
                 this,
+                CLASS_REMINDER_NOTIFICATION_ID,
+                CLASS_REMINDER_CHANNEL_ID,
                 "Test de Notification",
                 "Ceci est une notification de test pour votre prochain cours !",
                 "Test", "Test Room"
             )
+            Log.d("MainActivity", "Bouton Simuler Notification cliqué.")
         }
 
         manageScheduleButton.setOnClickListener {
             showManageScheduleDialog()
+            Log.d("MainActivity", "Bouton Gérer Emploi du Temps Annuel cliqué.")
         }
 
         dailyChangesButton.setOnClickListener {
             showDailyChangesDialog()
+            Log.d("MainActivity", "Bouton Modifications Quotidiennes cliqué.")
+        }
+
+        setDailyReminderTimeButton.setOnClickListener {
+            showTimePickerDialog()
+            Log.d("MainActivity", "Bouton Définir l'heure du rappel quotidien cliqué.")
+        }
+
+        requestBatteryOptimizationButton.setOnClickListener {
+            checkAndRequestBatteryOptimization()
+            Log.d("MainActivity", "Bouton Vérifier Optimisation Batterie cliqué.")
         }
 
         updateTodayScheduleDisplay()
+
+        handleIntent(intent)
+        Log.d("MainActivity", "MainActivity onCreate terminé.")
+    }
+
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleIntent(intent)
+        Log.d("MainActivity", "MainActivity onNewIntent appelé.")
+    }
+
+    private fun handleIntent(intent: Intent?) {
+        if (intent?.getBooleanExtra(EXTRA_OPEN_DAILY_CHANGES, false) == true) {
+            showDailyChangesDialog()
+            Log.d("MainActivity", "Ouverture du dialogue des modifications quotidiennes via Intent.")
+        }
+    }
+
+    private fun showTimePickerDialog() {
+        // Récupérer l'heure actuelle du rappel quotidien ou la valeur par défaut
+        val currentHour = sharedPreferences.getInt("dailyReminderHour", 7)
+        val currentMinute = sharedPreferences.getInt("dailyReminderMinute", 0)
+
+        val timePickerDialog = TimePickerDialog(
+            this,
+            { _, hourOfDay, minute ->
+                sharedPreferences.edit()
+                    .putInt("dailyReminderHour", hourOfDay)
+                    .putInt("dailyReminderMinute", minute)
+                    .apply()
+                Toast.makeText(this, "Rappel quotidien défini pour ${String.format("%02d:%02d", hourOfDay, minute)}", Toast.LENGTH_LONG).show()
+                // Re-planifier toutes les notifications, y compris le rappel quotidien invisible
+                NotificationHelper.scheduleNextClassNotification(this)
+                Log.d("MainActivity", "Heure de rappel quotidien définie à ${String.format("%02d:%02d", hourOfDay, minute)}")
+            },
+            currentHour,
+            currentMinute,
+            true
+        )
+        timePickerDialog.show()
     }
 
     override fun onResume() {
@@ -146,13 +219,19 @@ class MainActivity : AppCompatActivity() {
         handler.post(updateTimeRunnable)
         loadData()
         updateTodayScheduleDisplay()
+        // Re-planifier toutes les notifications quand l'app revient au premier plan
         NotificationHelper.scheduleNextClassNotification(this)
+        Log.d("MainActivity", "MainActivity onResume appelé. Notifications re-planifiées.")
+        // Mettre à jour l'état du bouton d'optimisation batterie
+        updateBatteryOptimizationButtonState()
     }
 
     override fun onPause() {
         super.onPause()
         handler.removeCallbacks(updateTimeRunnable)
+        // Re-planifier toutes les notifications quand l'app passe en arrière-plan (pour s'assurer que les alarmes sont actives)
         NotificationHelper.scheduleNextClassNotification(this)
+        Log.d("MainActivity", "MainActivity onPause appelé. Notifications re-planifiées en arrière-plan.")
     }
 
     // --- Gestion des données ---
@@ -171,6 +250,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             dailyChanges = mutableMapOf()
         }
+        Log.d("MainActivity", "Données chargées. Schedule: ${schedule.size} items, DailyChanges: ${dailyChanges.size} jours.")
     }
 
     private fun saveData() {
@@ -178,6 +258,7 @@ class MainActivity : AppCompatActivity() {
         editor.putString("classSchedule", gson.toJson(schedule))
         editor.putString("dailyClassChanges", gson.toJson(dailyChanges))
         editor.apply()
+        Log.d("MainActivity", "Données sauvegardées.")
     }
 
     // --- Logique du prochain cours et mise à jour UI ---
@@ -244,7 +325,10 @@ class MainActivity : AppCompatActivity() {
 
         upcomingClasses.sortBy { it.dateTime }
 
-        val nextClass = upcomingClasses.firstOrNull { it.dateTime > now.timeInMillis }
+        // Filtrer le cours invisible ici pour l'affichage du "prochain cours"
+        val nextClass = upcomingClasses.firstOrNull {
+            it.dateTime > now.timeInMillis && it.course != INTERNAL_DAILY_REMINDER_COURSE_NAME
+        }
 
         if (nextClass != null) {
             val timeDiff = nextClass.dateTime - now.timeInMillis
@@ -299,6 +383,10 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        // Filtrer le cours invisible du rappel quotidien pour qu'il ne s'affiche pas
+        displaySchedule = displaySchedule.filter { it.course != INTERNAL_DAILY_REMINDER_COURSE_NAME }.toMutableList()
+
+
         displaySchedule.sortBy {
             val (h, m) = it.time.split(":").map { it.toInt() }
             h * 60 + m
@@ -313,6 +401,7 @@ class MainActivity : AppCompatActivity() {
             noClassTodayText.visibility = View.GONE
             todayScheduleRecyclerView.visibility = View.VISIBLE
         }
+        Log.d("MainActivity", "Affichage de l'emploi du temps du jour mis à jour. Cours affichés: ${displaySchedule.size}")
     }
 
     // --- Dialogue pour gérer l'emploi du temps annuel ---
@@ -342,12 +431,14 @@ class MainActivity : AppCompatActivity() {
                     annualScheduleAdapterInstance?.updateData(schedule.toMutableList())
                     Toast.makeText(this, "Cours supprimé.", Toast.LENGTH_SHORT).show()
                     NotificationHelper.scheduleNextClassNotification(this)
+                    Log.d("MainActivity", "Cours supprimé: ${item.course}")
                 }
                 .setNegativeButton("Annuler", null)
                 .show()
         }
 
-        annualScheduleAdapterInstance = ClassAdapter(schedule.toMutableList(), true, onDeleteClickLambda)
+        // Passer le nom du cours invisible à l'adaptateur
+        annualScheduleAdapterInstance = ClassAdapter(schedule.toMutableList(), true, INTERNAL_DAILY_REMINDER_COURSE_NAME, onDeleteClickLambda)
 
         annualScheduleRecyclerView.layoutManager = LinearLayoutManager(this)
         annualScheduleRecyclerView.adapter = annualScheduleAdapterInstance
@@ -384,6 +475,7 @@ class MainActivity : AppCompatActivity() {
                 addCourseInput.text.clear()
                 addRoomInput.text.clear()
                 NotificationHelper.scheduleNextClassNotification(this)
+                Log.d("MainActivity", "Cours ajouté: $newClass")
             } else {
                 Toast.makeText(this, "Veuillez remplir tous les champs.", Toast.LENGTH_SHORT).show()
             }
@@ -393,6 +485,7 @@ class MainActivity : AppCompatActivity() {
             loadData()
             updateTodayScheduleDisplay()
             NotificationHelper.scheduleNextClassNotification(this)
+            Log.d("MainActivity", "Dialogue Gérer Emploi du Temps Annuel fermé.")
         }
         dialog.show()
     }
@@ -408,7 +501,7 @@ class MainActivity : AppCompatActivity() {
         dialogView.findViewById<TextView>(R.id.dailyChangesTitle).text = "Modifications Quotidiennes pour $currentDay"
 
         val cancelCourseInput: EditText = dialogView.findViewById(R.id.cancelCourseInput)
-        val cancelTimeInput: EditText = dialogView.findViewById(R.id.cancelTimeInput)
+        val cancelTimeInput: EditText = dialogView.findViewById(R.id.cancelCourseInput)
         val cancelClassButton: Button = dialogView.findViewById(R.id.cancelClassButton)
 
         cancelClassButton.setOnClickListener {
@@ -420,6 +513,7 @@ class MainActivity : AppCompatActivity() {
                 cancelCourseInput.text.clear()
                 cancelTimeInput.text.clear()
                 dialog.dismiss()
+                Log.d("MainActivity", "Changement quotidien: Cours annulé ($course à $time)")
             } else {
                 Toast.makeText(this, "Veuillez entrer le cours et l'heure à annuler.", Toast.LENGTH_SHORT).show()
             }
@@ -448,6 +542,7 @@ class MainActivity : AppCompatActivity() {
                 modifyNewCourseNameInput.text.clear()
                 modifyNewCourseTimeInput.text.clear()
                 dialog.dismiss()
+                Log.d("MainActivity", "Changement quotidien: Cours modifié ($originalCourse à $originalTime -> $newCourseName à $newCourseTime en salle $newRoom)")
             } else {
                 Toast.makeText(this, "Veuillez spécifier le cours original et au moins une modification.", Toast.LENGTH_SHORT).show()
             }
@@ -470,6 +565,7 @@ class MainActivity : AppCompatActivity() {
                 addNewCourseTimeInput.text.clear()
                 addNewRoomInput.text.clear()
                 dialog.dismiss()
+                Log.d("MainActivity", "Changement quotidien: Nouveau cours ponctuel ajouté ($newCourseName à $newCourseTime en salle $newRoom)")
             } else {
                 Toast.makeText(this, "Veuillez remplir tous les champs pour le nouveau cours.", Toast.LENGTH_SHORT).show()
             }
@@ -497,6 +593,7 @@ class MainActivity : AppCompatActivity() {
                     updateTodayScheduleDisplay()
                     Toast.makeText(this, "Changements quotidiens réinitialisés.", Toast.LENGTH_SHORT).show()
                     NotificationHelper.scheduleNextClassNotification(this)
+                    Log.d("MainActivity", "Changements quotidiens réinitialisés pour $currentDay.")
                 }
                 .setNegativeButton("Annuler", null)
                 .show()
@@ -506,6 +603,7 @@ class MainActivity : AppCompatActivity() {
             loadData()
             updateTodayScheduleDisplay()
             NotificationHelper.scheduleNextClassNotification(this)
+            Log.d("MainActivity", "Dialogue Modifications Quotidiennes fermé.")
         }
         dialog.show()
     }
@@ -528,6 +626,7 @@ class MainActivity : AppCompatActivity() {
     class ClassAdapter(
         private var classList: MutableList<ClassItem>,
         private val showDeleteButton: Boolean,
+        private val internalDailyReminderCourseName: String, // Nouveau paramètre
         private val onDeleteClick: (Int, ClassItem) -> Unit
     ) : RecyclerView.Adapter<ClassAdapter.ClassViewHolder>() {
 
@@ -558,7 +657,8 @@ class MainActivity : AppCompatActivity() {
         override fun getItemCount() = classList.size
 
         fun updateData(newList: MutableList<ClassItem>) {
-            classList = newList
+            // Filtrer le cours invisible du rappel quotidien pour qu'il ne s'affiche pas
+            classList = newList.filter { it.course != internalDailyReminderCourseName }.toMutableList()
             notifyDataSetChanged()
         }
     }
@@ -602,5 +702,57 @@ class MainActivity : AppCompatActivity() {
         }
 
         override fun getItemCount() = changesList.size
+    }
+
+    // --- Fonctions d'optimisation de batterie ---
+    private fun checkAndRequestBatteryOptimization() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val packageName = packageName
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (!pm.isIgnoringBatteryOptimizations(packageName)) {
+                // L'application n'est pas ignorée, demander la permission
+                AlertDialog.Builder(this)
+                    .setTitle("Désactiver l'optimisation de batterie")
+                    .setMessage("Pour garantir que les rappels fonctionnent de manière fiable même lorsque l'application est fermée, veuillez autoriser cette application à ignorer les optimisations de batterie. Cela aide à prévenir que le système ne la mette en veille.")
+                    .setPositiveButton("Continuer") { dialog, which ->
+                        val intent = Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS)
+                        intent.data = Uri.parse("package:$packageName")
+                        try {
+                            startActivity(intent)
+                        } catch (e: Exception) {
+                            Log.e("MainActivity", "Impossible de lancer les paramètres d'optimisation batterie: ${e.message}")
+                            Toast.makeText(this, "Impossible d'ouvrir les paramètres. Veuillez le faire manuellement : Paramètres > Applications > Votre App > Batterie > Désactiver l'optimisation.", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    .setNegativeButton("Annuler") { dialog, which ->
+                        Toast.makeText(this, "Les rappels pourraient ne pas être fiables sans cette permission.", Toast.LENGTH_LONG).show()
+                    }
+                    .show()
+                Log.d("MainActivity", "Demande d'ignorance de l'optimisation batterie affichée.")
+            } else {
+                Toast.makeText(this, "L'optimisation de batterie est déjà ignorée pour cette application. Les rappels devraient être fiables.", Toast.LENGTH_LONG).show()
+                Log.d("MainActivity", "L'optimisation batterie est déjà ignorée.")
+            }
+        } else {
+            Toast.makeText(this, "L'optimisation de batterie n'est pas applicable sur cette version d'Android.", Toast.LENGTH_SHORT).show()
+            Log.d("MainActivity", "Version Android < M, optimisation batterie non applicable.")
+        }
+    }
+
+    // Met à jour le texte du bouton d'optimisation de batterie
+    private fun updateBatteryOptimizationButtonState() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
+            if (pm.isIgnoringBatteryOptimizations(packageName)) {
+                requestBatteryOptimizationButton.text = "Optimisation Batterie: OK ✅"
+                requestBatteryOptimizationButton.setBackgroundColor(Color.parseColor("#2ECC71")) // Vert
+            } else {
+                requestBatteryOptimizationButton.text = "Optimisation Batterie: Requis ⚠️"
+                requestBatteryOptimizationButton.setBackgroundColor(Color.parseColor("#E67E22")) // Orange
+            }
+        } else {
+            requestBatteryOptimizationButton.text = "Optimisation Batterie: N/A"
+            requestBatteryOptimizationButton.setBackgroundColor(Color.parseColor("#95A5A6")) // Gris
+        }
     }
 }
