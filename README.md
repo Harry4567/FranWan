@@ -7,6 +7,9 @@ FranWan est partit d'un projet existant, commencé au lycée, par un groupe de 3
 
 Dans les prochaines mises à jours de FranWan, de nouvelles fonctionnalités devraient arrivés :
 
-- Ajouter un logo à l'application
-- Mettre en place une notification journalière matinale pour demander si l'utilisateur veut modifier son emploi du temps de la journée, suite à un déplacement de cours par exemple. Vous pouvez déjà le faire, mais rien ne vous rappelera de le faire.
+- Avoir la possibilité de choisir ses jours de cours
+- Avoir la possibilité de stopper les rappels pendant les vacnes via un bouton "Pause vacances", où vous devrez définir une durée pendant laquelle vous ne recevrez pas de notifications 
 
+### Responsabilité
+
+FranWan contient sûrement des failles, et Harry4567, développeur de cette application, avec gemini, décline toute responsabilité en cas de piratage à cause de FranWan
