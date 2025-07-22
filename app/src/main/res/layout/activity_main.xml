@@ -1,10 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
+    android:layout_width="match_parent" android:layout_height="match_parent"
     android:background="#F0F4F8"
     tools:context=".MainActivity">
 
@@ -26,6 +24,7 @@
             android:layout_marginBottom="20dp"
             android:gravity="center_horizontal"/>
 
+        <!-- Carte pour le prochain cours -->
         <com.google.android.material.card.MaterialCardView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -98,6 +97,7 @@
             </LinearLayout>
         </com.google.android.material.card.MaterialCardView>
 
+        <!-- Boutons de navigation -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
@@ -135,12 +135,51 @@
                 app:cornerRadius="10dp"/>
         </LinearLayout>
 
+        <!-- Boutons de configuration des rappels -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginBottom="12dp">
+
+            <Button
+                android:id="@+id/setDailyReminderTimeButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Définir l'heure du rappel quotidien"
+                android:backgroundTint="#8E44AD"
+                android:textColor="@android:color/white"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                app:cornerRadius="10dp"
+                android:layout_marginEnd="8dp"/>
+
+            <Button
+                android:id="@+id/setCourseDaysButton"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="Définir les jours de cours"
+                android:backgroundTint="#3F51B5"
+                android:textColor="@android:color/white"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:paddingTop="12dp"
+                android:paddingBottom="12dp"
+                app:cornerRadius="10dp"/>
+        </LinearLayout>
+
+        <!-- Bouton pour la pause vacances -->
         <Button
-            android:id="@+id/setDailyReminderTimeButton"
+            android:id="@+id/vacationPauseButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Définir l'heure du rappel quotidien"
-            android:backgroundTint="#8E44AD"
+            android:text="Pause Vacances: Désactivée"
+            android:backgroundTint="#6A5ACD"
             android:textColor="@android:color/white"
             android:paddingStart="20dp"
             android:paddingEnd="20dp"
@@ -149,6 +188,7 @@
             app:cornerRadius="10dp"
             android:layout_marginBottom="12dp"/>
 
+        <!-- Bouton d'optimisation de batterie -->
         <Button
             android:id="@+id/requestBatteryOptimizationButton"
             android:layout_width="wrap_content"
@@ -164,6 +204,7 @@
             android:layout_marginBottom="24dp"/>
 
 
+        <!-- Section Emploi du Temps pour Aujourd'hui -->
         <TextView
             android:id="@+id/todayScheduleTitle"
             android:layout_width="wrap_content"
@@ -190,5 +231,27 @@
             android:textSize="16sp"
             android:textColor="#95A5A6"
             android:layout_marginTop="10dp"
-            android:visibility="gone" /> </LinearLayout>
+            android:visibility="gone" /> <!-- Sera visible si pas de cours -->
+
+        <!-- NOUVEAU : Affichage de la version et du pseudo -->
+        <TextView
+            android:id="@+id/appVersionText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="30dp"
+            android:textSize="14sp"
+            android:textColor="#7F8C8D"
+            tools:text="Version: 1.0.0"/>
+
+        <TextView
+            android:id="@+id/appUserText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="5dp"
+            android:layout_marginBottom="20dp"
+            android:textSize="14sp"
+            android:textColor="#7F8C8D"
+            tools:text="Utilisateur: Harry456"/>
+
+    </LinearLayout>
 </ScrollView>

@@ -26,8 +26,8 @@ const val CLASS_REMINDER_NOTIFICATION_ID = 101 // ID unique pour la notification
 
 // Constantes pour la notification quotidienne de modification
 const val DAILY_MOD_CHANNEL_ID = "daily_mod_channel"
-const val DAILY_MOD_CHANNEL_NAME = "Modifications Quotidiennes" // <--- C'est ici qu'elles sont définies
-const val DAILY_MOD_CHANNEL_DESCRIPTION = "Rappel pour les modifications d'emploi du temps du jour" // <--- C'est ici qu'elles sont définies
+const val DAILY_MOD_CHANNEL_NAME = "Modifications Quotidiennes"
+const val DAILY_MOD_CHANNEL_DESCRIPTION = "Rappel pour les modifications d'emploi du temps du jour"
 const val DAILY_MOD_NOTIFICATION_ID = 102 // ID unique pour la notification de modification quotidienne
 const val EXTRA_OPEN_DAILY_CHANGES = "open_daily_changes_dialog" // Clé pour l'Intent
 
@@ -37,14 +37,14 @@ const val EXTRA_COURSE_TIME = "extra_course_time"
 const val EXTRA_COURSE_ROOM = "extra_course_room"
 const val EXTRA_COURSE_DAY = "extra_course_day"
 
-// NOUVELLE CONSTANTE : Nom du cours invisible pour le rappel quotidien
+// CONSTANTE : Nom du cours invisible pour le rappel quotidien
 const val INTERNAL_DAILY_REMINDER_COURSE_NAME = "INTERNAL_DAILY_REMINDER_COURSE"
 
 
 object NotificationHelper {
 
     private val gson = Gson()
-    private val daysOfWeek = listOf(
+    val daysOfWeek = listOf(
         "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"
     )
 
@@ -120,6 +120,27 @@ object NotificationHelper {
         val sharedPreferences = context.getSharedPreferences("ClassSchedulerApp", Context.MODE_PRIVATE)
         val scheduleJson = sharedPreferences.getString("classSchedule", null)
         val dailyChangesJson = sharedPreferences.getString("dailyClassChanges", null)
+        // Charger les jours de cours définis par l'utilisateur
+        val courseDays = sharedPreferences.getStringSet("courseDays", null)?.toSet() ?: daysOfWeek.toSet() // Par défaut, tous les jours sont des jours de cours
+
+        // NOUVEAU : Vérifier si la pause vacances est active
+        val isVacationModeActive = sharedPreferences.getBoolean("isVacationModeActive", false)
+        val vacationEndDateMillis = sharedPreferences.getLong("vacationEndDateMillis", 0L)
+        val now = Calendar.getInstance()
+
+        if (isVacationModeActive) {
+            if (now.timeInMillis < vacationEndDateMillis) {
+                // Pause vacances active et non expirée, annuler toutes les alarmes et ne rien planifier
+                cancelExistingNotificationAlarm(context, CLASS_REMINDER_NOTIFICATION_ID)
+                cancelExistingNotificationAlarm(context, DAILY_MOD_NOTIFICATION_ID)
+                Log.d("NotificationHelper", "Pause vacances active jusqu'au ${SimpleDateFormat("dd/MM HH:mm", Locale.getDefault()).format(Date(vacationEndDateMillis))}. Aucune notification planifiée.")
+                return
+            } else {
+                // Pause vacances expirée, désactiver le mode et continuer la planification normale
+                sharedPreferences.edit().putBoolean("isVacationModeActive", false).apply()
+                Log.d("NotificationHelper", "Pause vacances expirée. Désactivation du mode vacances et reprise de la planification normale.")
+            }
+        }
 
         val schedule: MutableList<ClassItem> = if (scheduleJson != null) {
             gson.fromJson(scheduleJson, object : TypeToken<MutableList<ClassItem>>() {}.type)
@@ -133,7 +154,6 @@ object NotificationHelper {
             mutableMapOf()
         }
 
-        val now = Calendar.getInstance()
 
         var upcomingEvents = mutableListOf<ClassItem>() // Renommé pour inclure les rappels quotidiens
 
@@ -144,6 +164,12 @@ object NotificationHelper {
             }
             val targetDayIndex = targetCalendar.get(Calendar.DAY_OF_WEEK) - 1
             val targetDayName = daysOfWeek[targetDayIndex]
+
+            // Filtrer les jours qui ne sont pas des jours de cours définis
+            if (!courseDays.contains(targetDayName)) {
+                Log.d("NotificationHelper", "Jour '$targetDayName' non défini comme jour de cours. Ignoré.")
+                continue // Passer au jour suivant
+            }
 
             var dailyScheduleForTargetDay = schedule.filter { it.day == targetDayName }.toMutableList()
 
@@ -198,28 +224,44 @@ object NotificationHelper {
         val dailyReminderMinute = sharedPreferences.getInt("dailyReminderMinute", -1)
 
         if (dailyReminderHour != -1 && dailyReminderMinute != -1) {
-            val dailyReminderCalendar = Calendar.getInstance().apply {
-                timeInMillis = System.currentTimeMillis() // Commence à l'heure actuelle
-                set(Calendar.HOUR_OF_DAY, dailyReminderHour)
-                set(Calendar.MINUTE, dailyReminderMinute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
+            var dailyReminderCalendar = Calendar.getInstance()
+            var foundNextCourseDay = false
+            for (i in 0..7) { // Chercher le prochain jour de cours valide
+                val tempCalendar = Calendar.getInstance().apply {
+                    timeInMillis = now.timeInMillis
+                    add(Calendar.DAY_OF_YEAR, i)
+                    set(Calendar.HOUR_OF_DAY, dailyReminderHour)
+                    set(Calendar.MINUTE, dailyReminderMinute)
+                    set(Calendar.SECOND, 0)
+                    set(Calendar.MILLISECOND, 0)
+                }
+
+                val tempDayIndex = tempCalendar.get(Calendar.DAY_OF_WEEK) - 1
+                val tempDayName = daysOfWeek[tempDayIndex]
+
+                if (courseDays.contains(tempDayName)) {
+                    // Si c'est le jour actuel et l'heure est passée, passer au jour de cours suivant
+                    if (i == 0 && tempCalendar.timeInMillis <= now.timeInMillis) {
+                        continue
+                    }
+                    dailyReminderCalendar = tempCalendar
+                    foundNextCourseDay = true
+                    break // Trouvé le prochain jour de cours valide
+                }
             }
 
-            // Si l'heure du rappel quotidien est déjà passée pour aujourd'hui, planifier pour demain
-            if (dailyReminderCalendar.timeInMillis <= now.timeInMillis) {
-                dailyReminderCalendar.add(Calendar.DAY_OF_YEAR, 1)
-                Log.d("NotificationHelper", "Rappel quotidien interne: heure passée pour aujourd'hui, planifié pour demain.")
+            if (foundNextCourseDay) {
+                upcomingEvents.add(ClassItem(
+                    day = daysOfWeek[dailyReminderCalendar.get(Calendar.DAY_OF_WEEK) - 1], // Jour réel du rappel
+                    time = String.format("%02d:%02d", dailyReminderHour, dailyReminderMinute),
+                    course = INTERNAL_DAILY_REMINDER_COURSE_NAME, // Nom spécial pour le reconnaître
+                    room = "", // Pas de salle
+                    dateTime = dailyReminderCalendar.timeInMillis
+                ))
+                Log.d("NotificationHelper", "Rappel quotidien interne ajouté à la liste des événements à venir pour: ${SimpleDateFormat("dd/MM HH:mm:ss", Locale.getDefault()).format(Date(dailyReminderCalendar.timeInMillis))}")
+            } else {
+                Log.d("NotificationHelper", "Aucun jour de cours défini pour planifier le rappel quotidien.")
             }
-
-            upcomingEvents.add(ClassItem(
-                day = daysOfWeek[dailyReminderCalendar.get(Calendar.DAY_OF_WEEK) - 1], // Jour réel du rappel
-                time = String.format("%02d:%02d", dailyReminderHour, dailyReminderMinute),
-                course = INTERNAL_DAILY_REMINDER_COURSE_NAME, // Nom spécial pour le reconnaître
-                room = "", // Pas de salle
-                dateTime = dailyReminderCalendar.timeInMillis
-            ))
-            Log.d("NotificationHelper", "Rappel quotidien interne ajouté à la liste des événements à venir pour: ${SimpleDateFormat("dd/MM HH:mm:ss", Locale.getDefault()).format(Date(dailyReminderCalendar.timeInMillis))}")
         }
 
         upcomingEvents.sortBy { it.dateTime } // Trier tous les événements par date/heure
@@ -298,23 +340,19 @@ object NotificationHelper {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
         val intent = Intent(context, NotificationReceiver::class.java)
 
-        // L'Intent doit correspondre exactement à celui utilisé pour la planification pour pouvoir l'annuler
-        // Pour la notification quotidienne, il faut aussi inclure l'extra
         if (notificationId == DAILY_MOD_NOTIFICATION_ID) {
             intent.putExtra(EXTRA_OPEN_DAILY_CHANGES, true)
-            // L'action n'est plus nécessaire car nous utilisons EXTRA_OPEN_DAILY_CHANGES pour différencier
-            // et le nom de cours interne.
         }
 
         val pendingIntent = PendingIntent.getBroadcast(
             context,
             notificationId,
             intent,
-            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE // FLAG_NO_CREATE pour ne pas créer si elle n'existe pas
+            PendingIntent.FLAG_NO_CREATE or PendingIntent.FLAG_IMMUTABLE
         )
         pendingIntent?.let {
             alarmManager.cancel(it)
-            it.cancel() // Annule le PendingIntent lui-même
+            it.cancel()
             Log.d("NotificationHelper", "Alarme de notification (ID: $notificationId) existante annulée.")
         } ?: Log.d("NotificationHelper", "Aucune alarme (ID: $notificationId) existante à annuler ou PendingIntent non trouvé.")
     }

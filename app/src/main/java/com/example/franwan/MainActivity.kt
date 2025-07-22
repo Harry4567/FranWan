@@ -1,6 +1,7 @@
 package com.example.franwan
 
 import android.app.AlertDialog
+import android.app.DatePickerDialog
 import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
@@ -28,6 +29,7 @@ import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
 import android.util.Log
+import android.widget.Switch
 
 // Modèle de données pour un cours
 data class ClassItem(
@@ -51,7 +53,7 @@ data class DailyChange(
 
 class MainActivity : AppCompatActivity() {
 
-    // NOUVELLE CONSTANTE : Nom du cours invisible pour le rappel quotidien
+    // Constante : Nom du cours invisible pour le rappel quotidien (doit être la même que dans NotificationHelper)
     private val INTERNAL_DAILY_REMINDER_COURSE_NAME = "INTERNAL_DAILY_REMINDER_COURSE"
 
     // Vues de l'interface utilisateur
@@ -62,10 +64,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var manageScheduleButton: Button
     private lateinit var dailyChangesButton: Button
     private lateinit var setDailyReminderTimeButton: Button
+    private lateinit var setCourseDaysButton: Button
+    private lateinit var vacationPauseButton: Button
     private lateinit var todayScheduleTitle: TextView
     private lateinit var todayScheduleRecyclerView: RecyclerView
     private lateinit var noClassTodayText: TextView
-    private lateinit var requestBatteryOptimizationButton: Button // Nouveau bouton
+    private lateinit var requestBatteryOptimizationButton: Button
+    private lateinit var appVersionText: TextView // NOUVEAU
+    private lateinit var appUserText: TextView    // NOUVEAU
 
     // Adaptateur pour le RecyclerView de l'emploi du temps du jour
     private lateinit var todayScheduleAdapter: ClassAdapter
@@ -77,6 +83,11 @@ class MainActivity : AppCompatActivity() {
     // Données de l'application
     private var schedule: MutableList<ClassItem> = mutableListOf()
     private var dailyChanges: MutableMap<String, MutableList<DailyChange>> = mutableMapOf()
+    private var selectedCourseDays: MutableSet<String> = mutableSetOf() // Jours de cours sélectionnés
+
+    // Variables pour la pause vacances
+    private var isVacationModeActive: Boolean = false
+    private var vacationEndDateMillis: Long = 0L
 
     // Gestion du temps
     private val handler = Handler(Looper.getMainLooper())
@@ -120,17 +131,20 @@ class MainActivity : AppCompatActivity() {
         manageScheduleButton = findViewById(R.id.manageScheduleButton)
         dailyChangesButton = findViewById(R.id.dailyChangesButton)
         setDailyReminderTimeButton = findViewById(R.id.setDailyReminderTimeButton)
+        setCourseDaysButton = findViewById(R.id.setCourseDaysButton)
+        vacationPauseButton = findViewById(R.id.vacationPauseButton)
         todayScheduleTitle = findViewById(R.id.todayScheduleTitle)
         todayScheduleRecyclerView = findViewById(R.id.todayScheduleRecyclerView)
         noClassTodayText = findViewById(R.id.noClassTodayText)
-        requestBatteryOptimizationButton = findViewById(R.id.requestBatteryOptimizationButton) // Initialisation du nouveau bouton
+        requestBatteryOptimizationButton = findViewById(R.id.requestBatteryOptimizationButton)
+        appVersionText = findViewById(R.id.appVersionText) // NOUVEAU
+        appUserText = findViewById(R.id.appUserText)       // NOUVEAU
 
         sharedPreferences = getSharedPreferences("ClassSchedulerApp", Context.MODE_PRIVATE)
 
         loadData()
 
         todayScheduleRecyclerView.layoutManager = LinearLayoutManager(this)
-        // Passer le nom du cours invisible à l'adaptateur pour qu'il puisse le filtrer
         todayScheduleAdapter = ClassAdapter(mutableListOf(), false, INTERNAL_DAILY_REMINDER_COURSE_NAME) { _, _ -> /* Pas d'action de suppression dans la vue principale */ }
         todayScheduleRecyclerView.adapter = todayScheduleAdapter
 
@@ -138,7 +152,6 @@ class MainActivity : AppCompatActivity() {
         NotificationHelper.createNotificationChannels(this)
 
         simulateNotificationButton.setOnClickListener {
-            // Simuler une notification de cours
             NotificationHelper.showNotification(
                 this,
                 CLASS_REMINDER_NOTIFICATION_ID,
@@ -165,10 +178,23 @@ class MainActivity : AppCompatActivity() {
             Log.d("MainActivity", "Bouton Définir l'heure du rappel quotidien cliqué.")
         }
 
+        setCourseDaysButton.setOnClickListener {
+            showSetCourseDaysDialog()
+            Log.d("MainActivity", "Bouton Définir les jours de cours cliqué.")
+        }
+
+        vacationPauseButton.setOnClickListener {
+            showVacationPauseDialog()
+            Log.d("MainActivity", "Bouton Pause vacances cliqué.")
+        }
+
         requestBatteryOptimizationButton.setOnClickListener {
             checkAndRequestBatteryOptimization()
             Log.d("MainActivity", "Bouton Vérifier Optimisation Batterie cliqué.")
         }
+
+        // Mettre à jour l'affichage de la version et du pseudo
+        updateAppInfoDisplay() // NOUVEAU
 
         updateTodayScheduleDisplay()
 
@@ -191,7 +217,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun showTimePickerDialog() {
-        // Récupérer l'heure actuelle du rappel quotidien ou la valeur par défaut
         val currentHour = sharedPreferences.getInt("dailyReminderHour", 7)
         val currentMinute = sharedPreferences.getInt("dailyReminderMinute", 0)
 
@@ -203,7 +228,6 @@ class MainActivity : AppCompatActivity() {
                     .putInt("dailyReminderMinute", minute)
                     .apply()
                 Toast.makeText(this, "Rappel quotidien défini pour ${String.format("%02d:%02d", hourOfDay, minute)}", Toast.LENGTH_LONG).show()
-                // Re-planifier toutes les notifications, y compris le rappel quotidien invisible
                 NotificationHelper.scheduleNextClassNotification(this)
                 Log.d("MainActivity", "Heure de rappel quotidien définie à ${String.format("%02d:%02d", hourOfDay, minute)}")
             },
@@ -214,22 +238,139 @@ class MainActivity : AppCompatActivity() {
         timePickerDialog.show()
     }
 
+    private fun showSetCourseDaysDialog() {
+        val checkedItems = BooleanArray(daysOfWeek.size) { i ->
+            selectedCourseDays.contains(daysOfWeek[i])
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Sélectionner les jours de cours")
+            .setMultiChoiceItems(daysOfWeek.toTypedArray(), checkedItems) { dialog, which, isChecked ->
+                if (isChecked) {
+                    selectedCourseDays.add(daysOfWeek[which])
+                } else {
+                    selectedCourseDays.remove(daysOfWeek[which])
+                }
+            }
+            .setPositiveButton("OK") { dialog, which ->
+                saveData() // Sauvegarder les jours sélectionnés
+                NotificationHelper.scheduleNextClassNotification(this) // Re-planifier toutes les notifications
+                updateTodayScheduleDisplay() // Mettre à jour l'affichage de l'emploi du temps du jour
+                updateCourseDaysButtonState() // Mettre à jour l'état du bouton
+                Toast.makeText(this, "Jours de cours mis à jour.", Toast.LENGTH_SHORT).show()
+                Log.d("MainActivity", "Jours de cours sélectionnés: $selectedCourseDays")
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
+    }
+
+    private fun showVacationPauseDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_vacation_pause, null)
+        val builder = AlertDialog.Builder(this)
+        builder.setView(dialogView)
+        val dialog = builder.create()
+
+        val vacationSwitch: Switch = dialogView.findViewById(R.id.vacationSwitch)
+        val endDateText: TextView = dialogView.findViewById(R.id.endDateText)
+        val selectEndDateButton: Button = dialogView.findViewById(R.id.selectEndDateButton)
+        val saveButton: Button = dialogView.findViewById(R.id.saveVacationButton)
+
+        // Initialiser le switch et le texte de la date de fin
+        vacationSwitch.isChecked = isVacationModeActive
+        updateEndDateDisplay(endDateText, vacationEndDateMillis)
+
+        // Gérer l'état initial des éléments en fonction du switch
+        selectEndDateButton.isEnabled = vacationSwitch.isChecked
+
+        vacationSwitch.setOnCheckedChangeListener { _, isChecked ->
+            isVacationModeActive = isChecked
+            selectEndDateButton.isEnabled = isChecked
+            if (!isChecked) {
+                vacationEndDateMillis = 0L // Réinitialiser la date de fin si la pause est désactivée
+                updateEndDateDisplay(endDateText, vacationEndDateMillis)
+            } else {
+                // Si activé, mais pas de date de fin définie, ouvrir le DatePicker
+                if (vacationEndDateMillis == 0L || Calendar.getInstance().timeInMillis >= vacationEndDateMillis) {
+                    showDatePickerForVacation(endDateText)
+                }
+            }
+        }
+
+        selectEndDateButton.setOnClickListener {
+            showDatePickerForVacation(endDateText)
+        }
+
+        saveButton.setOnClickListener {
+            saveData() // Sauvegarder l'état de la pause vacances
+            NotificationHelper.scheduleNextClassNotification(this) // Re-planifier les notifications
+            updateVacationPauseButtonState() // Mettre à jour le bouton principal
+            Toast.makeText(this, "Paramètres de pause vacances sauvegardés.", Toast.LENGTH_SHORT).show()
+            dialog.dismiss()
+            Log.d("MainActivity", "Pause vacances: active=$isVacationModeActive, fin=${if (vacationEndDateMillis > 0) SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(vacationEndDateMillis)) else "N/A"}")
+        }
+
+        dialog.setOnDismissListener {
+            // S'assurer que le bouton principal est à jour même si on annule
+            updateVacationPauseButtonState()
+            NotificationHelper.scheduleNextClassNotification(this) // Re-planifier au cas où
+        }
+        dialog.show()
+    }
+
+    private fun showDatePickerForVacation(endDateTextView: TextView) {
+        val calendar = Calendar.getInstance()
+        if (vacationEndDateMillis > 0) {
+            calendar.timeInMillis = vacationEndDateMillis
+        }
+
+        val year = calendar.get(Calendar.YEAR)
+        val month = calendar.get(Calendar.MONTH)
+        val day = calendar.get(Calendar.DAY_OF_MONTH)
+
+        val datePickerDialog = DatePickerDialog(
+            this,
+            { _, selectedYear, selectedMonth, selectedDay ->
+                val selectedCalendar = Calendar.getInstance().apply {
+                    set(selectedYear, selectedMonth, selectedDay, 23, 59, 59) // Fin de journée
+                    set(Calendar.MILLISECOND, 999)
+                }
+                vacationEndDateMillis = selectedCalendar.timeInMillis
+                updateEndDateDisplay(endDateTextView, vacationEndDateMillis)
+            },
+            year,
+            month,
+            day
+        )
+        datePickerDialog.datePicker.minDate = System.currentTimeMillis() // Ne peut pas choisir une date passée
+        datePickerDialog.show()
+    }
+
+    private fun updateEndDateDisplay(textView: TextView, millis: Long) {
+        if (millis > 0) {
+            val dateFormat = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault())
+            textView.text = "Fin le : ${dateFormat.format(Date(millis))}"
+        } else {
+            textView.text = "Date de fin non définie"
+        }
+    }
+
+
     override fun onResume() {
         super.onResume()
         handler.post(updateTimeRunnable)
         loadData()
         updateTodayScheduleDisplay()
-        // Re-planifier toutes les notifications quand l'app revient au premier plan
         NotificationHelper.scheduleNextClassNotification(this)
         Log.d("MainActivity", "MainActivity onResume appelé. Notifications re-planifiées.")
-        // Mettre à jour l'état du bouton d'optimisation batterie
         updateBatteryOptimizationButtonState()
+        updateCourseDaysButtonState()
+        updateVacationPauseButtonState()
+        updateAppInfoDisplay() // Mettre à jour l'affichage de la version et du pseudo
     }
 
     override fun onPause() {
         super.onPause()
         handler.removeCallbacks(updateTimeRunnable)
-        // Re-planifier toutes les notifications quand l'app passe en arrière-plan (pour s'assurer que les alarmes sont actives)
         NotificationHelper.scheduleNextClassNotification(this)
         Log.d("MainActivity", "MainActivity onPause appelé. Notifications re-planifiées en arrière-plan.")
     }
@@ -250,13 +391,40 @@ class MainActivity : AppCompatActivity() {
         } else {
             dailyChanges = mutableMapOf()
         }
-        Log.d("MainActivity", "Données chargées. Schedule: ${schedule.size} items, DailyChanges: ${dailyChanges.size} jours.")
+
+        val savedCourseDays = sharedPreferences.getStringSet("courseDays", null)
+        selectedCourseDays = if (savedCourseDays != null && savedCourseDays.isNotEmpty()) {
+            savedCourseDays.toMutableSet()
+        } else {
+            daysOfWeek.toMutableSet()
+        }
+
+        // Charger l'état de la pause vacances
+        isVacationModeActive = sharedPreferences.getBoolean("isVacationModeActive", false)
+        vacationEndDateMillis = sharedPreferences.getLong("vacationEndDateMillis", 0L)
+
+        // Vérifier si la pause vacances est expirée au chargement
+        if (isVacationModeActive && Calendar.getInstance().timeInMillis >= vacationEndDateMillis) {
+            isVacationModeActive = false
+            vacationEndDateMillis = 0L
+            sharedPreferences.edit()
+                .putBoolean("isVacationModeActive", false)
+                .putLong("vacationEndDateMillis", 0L)
+                .apply()
+            Log.d("MainActivity", "Pause vacances expirée au chargement. Désactivée.")
+        }
+
+        Log.d("MainActivity", "Données chargées. Schedule: ${schedule.size} items, DailyChanges: ${dailyChanges.size} jours, Jours de cours: $selectedCourseDays, Pause vacances: $isVacationModeActive jusqu'à ${if (vacationEndDateMillis > 0) SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(vacationEndDateMillis)) else "N/A"}.")
     }
 
     private fun saveData() {
         val editor = sharedPreferences.edit()
         editor.putString("classSchedule", gson.toJson(schedule))
         editor.putString("dailyClassChanges", gson.toJson(dailyChanges))
+        editor.putStringSet("courseDays", selectedCourseDays)
+        // Sauvegarder l'état de la pause vacances
+        editor.putBoolean("isVacationModeActive", isVacationModeActive)
+        editor.putLong("vacationEndDateMillis", vacationEndDateMillis)
         editor.apply()
         Log.d("MainActivity", "Données sauvegardées.")
     }
@@ -275,6 +443,10 @@ class MainActivity : AppCompatActivity() {
             }
             val targetDayIndex = targetCalendar.get(Calendar.DAY_OF_WEEK) - 1
             val targetDayName = daysOfWeek[targetDayIndex]
+
+            if (!selectedCourseDays.contains(targetDayName)) {
+                continue
+            }
 
             var dailyScheduleForTargetDay = schedule.filter { it.day == targetDayName }.toMutableList()
 
@@ -325,7 +497,6 @@ class MainActivity : AppCompatActivity() {
 
         upcomingClasses.sortBy { it.dateTime }
 
-        // Filtrer le cours invisible ici pour l'affichage du "prochain cours"
         val nextClass = upcomingClasses.firstOrNull {
             it.dateTime > now.timeInMillis && it.course != INTERNAL_DAILY_REMINDER_COURSE_NAME
         }
@@ -383,9 +554,7 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
-        // Filtrer le cours invisible du rappel quotidien pour qu'il ne s'affiche pas
         displaySchedule = displaySchedule.filter { it.course != INTERNAL_DAILY_REMINDER_COURSE_NAME }.toMutableList()
-
 
         displaySchedule.sortBy {
             val (h, m) = it.time.split(":").map { it.toInt() }
@@ -437,7 +606,6 @@ class MainActivity : AppCompatActivity() {
                 .show()
         }
 
-        // Passer le nom du cours invisible à l'adaptateur
         annualScheduleAdapterInstance = ClassAdapter(schedule.toMutableList(), true, INTERNAL_DAILY_REMINDER_COURSE_NAME, onDeleteClickLambda)
 
         annualScheduleRecyclerView.layoutManager = LinearLayoutManager(this)
@@ -501,7 +669,7 @@ class MainActivity : AppCompatActivity() {
         dialogView.findViewById<TextView>(R.id.dailyChangesTitle).text = "Modifications Quotidiennes pour $currentDay"
 
         val cancelCourseInput: EditText = dialogView.findViewById(R.id.cancelCourseInput)
-        val cancelTimeInput: EditText = dialogView.findViewById(R.id.cancelCourseInput)
+        val cancelTimeInput: EditText = dialogView.findViewById(R.id.cancelTimeInput)
         val cancelClassButton: Button = dialogView.findViewById(R.id.cancelClassButton)
 
         cancelClassButton.setOnClickListener {
@@ -626,7 +794,7 @@ class MainActivity : AppCompatActivity() {
     class ClassAdapter(
         private var classList: MutableList<ClassItem>,
         private val showDeleteButton: Boolean,
-        private val internalDailyReminderCourseName: String, // Nouveau paramètre
+        private val internalDailyReminderCourseName: String,
         private val onDeleteClick: (Int, ClassItem) -> Unit
     ) : RecyclerView.Adapter<ClassAdapter.ClassViewHolder>() {
 
@@ -657,7 +825,6 @@ class MainActivity : AppCompatActivity() {
         override fun getItemCount() = classList.size
 
         fun updateData(newList: MutableList<ClassItem>) {
-            // Filtrer le cours invisible du rappel quotidien pour qu'il ne s'affiche pas
             classList = newList.filter { it.course != internalDailyReminderCourseName }.toMutableList()
             notifyDataSetChanged()
         }
@@ -710,7 +877,6 @@ class MainActivity : AppCompatActivity() {
             val packageName = packageName
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             if (!pm.isIgnoringBatteryOptimizations(packageName)) {
-                // L'application n'est pas ignorée, demander la permission
                 AlertDialog.Builder(this)
                     .setTitle("Désactiver l'optimisation de batterie")
                     .setMessage("Pour garantir que les rappels fonctionnent de manière fiable même lorsque l'application est fermée, veuillez autoriser cette application à ignorer les optimisations de batterie. Cela aide à prévenir que le système ne la mette en veille.")
@@ -745,14 +911,61 @@ class MainActivity : AppCompatActivity() {
             val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
             if (pm.isIgnoringBatteryOptimizations(packageName)) {
                 requestBatteryOptimizationButton.text = "Optimisation Batterie: OK ✅"
-                requestBatteryOptimizationButton.setBackgroundColor(Color.parseColor("#2ECC71")) // Vert
+                requestBatteryOptimizationButton.setBackgroundColor(Color.parseColor("#2ECC71"))
             } else {
                 requestBatteryOptimizationButton.text = "Optimisation Batterie: Requis ⚠️"
-                requestBatteryOptimizationButton.setBackgroundColor(Color.parseColor("#E67E22")) // Orange
+                requestBatteryOptimizationButton.setBackgroundColor(Color.parseColor("#E67E22"))
             }
         } else {
             requestBatteryOptimizationButton.text = "Optimisation Batterie: N/A"
-            requestBatteryOptimizationButton.setBackgroundColor(Color.parseColor("#95A5A6")) // Gris
+            requestBatteryOptimizationButton.setBackgroundColor(Color.parseColor("#95A5A6"))
         }
+    }
+
+    // Met à jour le texte du bouton des jours de cours
+    private fun updateCourseDaysButtonState() {
+        if (selectedCourseDays.size == daysOfWeek.size) {
+            setCourseDaysButton.text = "Jours de Cours: Tous les jours"
+        } else if (selectedCourseDays.isEmpty()) {
+            setCourseDaysButton.text = "Jours de Cours: Aucun"
+        } else {
+            val sortedDays = daysOfWeek.filter { selectedCourseDays.contains(it) }
+            val displayNames = sortedDays.map { it.substring(0, 2) }
+            setCourseDaysButton.text = "Jours de Cours: ${displayNames.joinToString(", ")}"
+        }
+    }
+
+    // Met à jour le texte du bouton de pause vacances
+    private fun updateVacationPauseButtonState() {
+        if (isVacationModeActive) {
+            if (vacationEndDateMillis > 0 && Calendar.getInstance().timeInMillis < vacationEndDateMillis) {
+                val dateFormat = SimpleDateFormat("dd/MM", Locale.getDefault())
+                val endDateFormatted = dateFormat.format(Date(vacationEndDateMillis))
+                vacationPauseButton.text = "Pause Vacances: Active jusqu'au $endDateFormatted 🏖️"
+                vacationPauseButton.setBackgroundColor(Color.parseColor("#FF6347"))
+            } else {
+                vacationPauseButton.text = "Pause Vacances: Expirée (cliquez pour réactiver)"
+                vacationPauseButton.setBackgroundColor(Color.parseColor("#808080"))
+            }
+        } else {
+            vacationPauseButton.text = "Pause Vacances: Désactivée"
+            vacationPauseButton.setBackgroundColor(Color.parseColor("#6A5ACD"))
+        }
+    }
+
+    // NOUVELLE FONCTION : Met à jour l'affichage de la version et du pseudo
+    private fun updateAppInfoDisplay() {
+        try {
+            val pInfo = packageManager.getPackageInfo(packageName, 0)
+            val versionName = pInfo.versionName
+            appVersionText.text = "Version: $versionName"
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Erreur lors de la récupération de la version de l'application: ${e.message}")
+            appVersionText.text = "Version: N/A"
+        }
+
+        // Définissez votre pseudo ici
+        val userName = "Harry456/7" // Vous pouvez changer cela à "Harry4567" si vous préférez
+        appUserText.text = "Utilisateur: $userName"
     }
 }
