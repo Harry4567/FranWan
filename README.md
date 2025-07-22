@@ -7,8 +7,8 @@ FranWan est partit d'un projet existant, commencé au lycée, par un groupe de 3
 
 Dans les prochaines mises à jours de FranWan, de nouvelles fonctionnalités devraient arrivés :
 
-- Avoir la possibilité de choisir ses jours de cours
-- Avoir la possibilité de stopper les rappels pendant les vacnes via un bouton "Pause vacances", où vous devrez définir une durée pendant laquelle vous ne recevrez pas de notifications 
+- Pouvoir importer ses cours directement sur l'application
+- Avoir la possibilité de gérer la notification de rappel : pouvoir la définir un temps voulu avant le cours
 
 ### Responsabilité
 
