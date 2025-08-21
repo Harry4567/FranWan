@@ -1,17 +1,39 @@
 <?xml version="1.0" encoding="utf-8"?>
-<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:layout_width="match_parent" 
+    android:layout_height="match_parent"
     android:background="#F0F4F8"
     tools:context=".MainActivity">
 
-    <LinearLayout
+    <!-- Bouton engrenage en haut à droite -->
+    <ImageButton
+        android:id="@+id/settingsButton"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_alignParentTop="true"
+        android:layout_alignParentEnd="true"
+        android:layout_marginTop="16dp"
+        android:layout_marginEnd="16dp"
+        android:background="?android:attr/selectableItemBackgroundBorderless"
+        android:src="@android:drawable/ic_menu_manage"
+        android:contentDescription="Paramètres"
+        android:tint="#2C3E50"
+        android:scaleType="fitCenter"
+        android:padding="12dp"/>
+
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:padding="16dp"
-        android:gravity="center_horizontal">
+        android:layout_height="match_parent"
+        android:layout_below="@id/settingsButton">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp"
+            android:gravity="center_horizontal">
 
         <TextView
             android:id="@+id/appTitle"
@@ -135,34 +157,59 @@
                 app:cornerRadius="10dp"/>
         </LinearLayout>
 
+        
+
         <!-- Boutons de configuration des rappels -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
+            android:orientation="vertical"
             android:gravity="center"
             android:layout_marginBottom="12dp">
 
-            <Button
-                android:id="@+id/setDailyReminderTimeButton"
-                android:layout_width="0dp"
+            <!-- Première ligne : Rappel quotidien et Délai des rappels -->
+            <LinearLayout
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="Définir l'heure du rappel quotidien"
-                android:backgroundTint="#8E44AD"
-                android:textColor="@android:color/white"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
-                android:paddingTop="12dp"
-                android:paddingBottom="12dp"
-                app:cornerRadius="10dp"
-                android:layout_marginEnd="8dp"/>
+                android:orientation="horizontal"
+                android:gravity="center"
+                android:layout_marginBottom="8dp">
 
+                <Button
+                    android:id="@+id/setDailyReminderTimeButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Définir l'heure du rappel quotidien"
+                    android:backgroundTint="#8E44AD"
+                    android:textColor="@android:color/white"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"
+                    app:cornerRadius="10dp"
+                    android:layout_marginEnd="8dp"/>
+
+                <Button
+                    android:id="@+id/setReminderDelayButton"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:text="Délai des rappels: 5 min"
+                    android:backgroundTint="#E67E22"
+                    android:textColor="@android:color/white"
+                    android:paddingStart="10dp"
+                    android:paddingEnd="10dp"
+                    android:paddingTop="12dp"
+                    android:paddingBottom="12dp"
+                    app:cornerRadius="10dp"/>
+            </LinearLayout>
+
+            <!-- Deuxième ligne : Jours de cours -->
             <Button
                 android:id="@+id/setCourseDaysButton"
-                android:layout_width="0dp"
+                android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_weight="1"
                 android:text="Définir les jours de cours"
                 android:backgroundTint="#3F51B5"
                 android:textColor="@android:color/white"
@@ -253,5 +300,6 @@
             android:textColor="#7F8C8D"
             tools:text="Utilisateur: Harry456"/>
 
-    </LinearLayout>
-</ScrollView>
+        </LinearLayout>
+    </ScrollView>
+</RelativeLayout>

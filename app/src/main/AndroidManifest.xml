@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+    <uses-permission android:name="android.permission.INTERNET"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS"/>
@@ -15,6 +16,10 @@
         android:roundIcon="@mipmap/ic_franwan_launcher"
         android:supportsRtl="true"
         android:theme="@style/Theme.FranWan">
+
+        <activity
+            android:name=".auth.LoginActivity"
+            android:exported="false" />
 
         <activity
             android:name=".MainActivity"

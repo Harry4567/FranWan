@@ -280,10 +280,17 @@ object NotificationHelper {
             var notificationId = CLASS_REMINDER_NOTIFICATION_ID
             var channelId = CLASS_REMINDER_CHANNEL_ID
 
-            // Ajustement pour les rappels de cours (5 minutes avant)
+            // Ajustement pour les rappels de cours (délai configurable)
             if (nextEventToNotify.course != INTERNAL_DAILY_REMINDER_COURSE_NAME) {
-                triggerAtMillis -= TimeUnit.MINUTES.toMillis(5)
-                Log.d("NotificationHelper", "Rappel de cours: déclenchement ajusté 5 minutes avant.")
+                val reminderDelayMinutes = context.getSharedPreferences("ClassSchedulerApp", Context.MODE_PRIVATE)
+                    .getInt("reminderDelayMinutes", 5) // Valeur par défaut : 5 minutes
+                if (reminderDelayMinutes > 0) {
+                    triggerAtMillis -= TimeUnit.MINUTES.toMillis(reminderDelayMinutes.toLong())
+                    Log.d("NotificationHelper", "Rappel de cours: déclenchement ajusté $reminderDelayMinutes minutes avant.")
+                } else {
+                    // Délai immédiat (0 minutes) - notification à l'heure exacte du cours
+                    Log.d("NotificationHelper", "Rappel de cours: déclenchement immédiat (à l'heure du cours).")
+                }
             } else {
                 // C'est le rappel quotidien invisible
                 notificationId = DAILY_MOD_NOTIFICATION_ID

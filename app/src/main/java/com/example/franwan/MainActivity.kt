@@ -30,6 +30,10 @@ import java.util.*
 import java.util.concurrent.TimeUnit
 import android.util.Log
 import android.widget.Switch
+import com.example.franwan.auth.SessionManager
+import com.example.franwan.auth.LoginActivity
+import com.example.franwan.auth.AuthRepository
+ 
 
 // Modèle de données pour un cours
 data class ClassItem(
@@ -64,6 +68,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var manageScheduleButton: Button
     private lateinit var dailyChangesButton: Button
     private lateinit var setDailyReminderTimeButton: Button
+    private lateinit var setReminderDelayButton: Button
     private lateinit var setCourseDaysButton: Button
     private lateinit var vacationPauseButton: Button
     private lateinit var todayScheduleTitle: TextView
@@ -72,6 +77,8 @@ class MainActivity : AppCompatActivity() {
     private lateinit var requestBatteryOptimizationButton: Button
     private lateinit var appVersionText: TextView // NOUVEAU
     private lateinit var appUserText: TextView    // NOUVEAU
+    private lateinit var settingsButton: ImageButton // NOUVEAU
+ 
 
     // Adaptateur pour le RecyclerView de l'emploi du temps du jour
     private lateinit var todayScheduleAdapter: ClassAdapter
@@ -98,6 +105,8 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+ 
+
     private val daysOfWeek = listOf(
         "Dimanche", "Lundi", "Mardi", "Mercredi", "Jeudi", "Vendredi", "Samedi"
     )
@@ -122,6 +131,12 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        val sessionManager = SessionManager(this)
+        if (!sessionManager.canAccessApp()) {
+            startActivity(Intent(this, LoginActivity::class.java))
+            finish()
+            return
+        }
         setContentView(R.layout.activity_main)
 
         nextCourseText = findViewById(R.id.nextCourseText)
@@ -131,6 +146,7 @@ class MainActivity : AppCompatActivity() {
         manageScheduleButton = findViewById(R.id.manageScheduleButton)
         dailyChangesButton = findViewById(R.id.dailyChangesButton)
         setDailyReminderTimeButton = findViewById(R.id.setDailyReminderTimeButton)
+        setReminderDelayButton = findViewById(R.id.setReminderDelayButton)
         setCourseDaysButton = findViewById(R.id.setCourseDaysButton)
         vacationPauseButton = findViewById(R.id.vacationPauseButton)
         todayScheduleTitle = findViewById(R.id.todayScheduleTitle)
@@ -139,8 +155,11 @@ class MainActivity : AppCompatActivity() {
         requestBatteryOptimizationButton = findViewById(R.id.requestBatteryOptimizationButton)
         appVersionText = findViewById(R.id.appVersionText) // NOUVEAU
         appUserText = findViewById(R.id.appUserText)       // NOUVEAU
+        settingsButton = findViewById(R.id.settingsButton) // NOUVEAU
 
         sharedPreferences = getSharedPreferences("ClassSchedulerApp", Context.MODE_PRIVATE)
+
+ 
 
         loadData()
 
@@ -178,6 +197,11 @@ class MainActivity : AppCompatActivity() {
             Log.d("MainActivity", "Bouton Définir l'heure du rappel quotidien cliqué.")
         }
 
+        setReminderDelayButton.setOnClickListener {
+            showReminderDelayDialog()
+            Log.d("MainActivity", "Bouton Délai des rappels cliqué.")
+        }
+
         setCourseDaysButton.setOnClickListener {
             showSetCourseDaysDialog()
             Log.d("MainActivity", "Bouton Définir les jours de cours cliqué.")
@@ -192,6 +216,13 @@ class MainActivity : AppCompatActivity() {
             checkAndRequestBatteryOptimization()
             Log.d("MainActivity", "Bouton Vérifier Optimisation Batterie cliqué.")
         }
+
+        settingsButton.setOnClickListener {
+            showSettingsMenu()
+            Log.d("MainActivity", "Bouton Paramètres cliqué.")
+        }
+
+ 
 
         // Mettre à jour l'affichage de la version et du pseudo
         updateAppInfoDisplay() // NOUVEAU
@@ -236,6 +267,68 @@ class MainActivity : AppCompatActivity() {
             true
         )
         timePickerDialog.show()
+    }
+
+    private fun showReminderDelayDialog() {
+        val delayOptions = arrayOf("Immédiat (à l'heure du cours)", "1 minute", "2 minutes", "3 minutes", "5 minutes", "10 minutes", "15 minutes", "30 minutes", "1 heure", "Délai personnalisé...")
+        val delayValues = intArrayOf(0, 1, 2, 3, 5, 10, 15, 30, 60, -1) // -1 pour délai personnalisé
+        
+        val currentDelay = sharedPreferences.getInt("reminderDelayMinutes", 5) // Valeur par défaut : 5 minutes
+        val currentIndex = delayValues.indexOf(currentDelay).takeIf { it >= 0 } ?: 4 // Index par défaut pour 5 minutes
+
+        AlertDialog.Builder(this)
+            .setTitle("Choisir le délai des rappels de cours")
+            .setSingleChoiceItems(delayOptions, currentIndex) { dialog, which ->
+                val selectedDelay = delayValues[which]
+                
+                if (selectedDelay == -1) {
+                    // Délai personnalisé
+                    showCustomDelayDialog()
+                    dialog.dismiss()
+                } else {
+                    sharedPreferences.edit().putInt("reminderDelayMinutes", selectedDelay).apply()
+                    updateReminderDelayButtonState()
+                    NotificationHelper.scheduleNextClassNotification(this)
+                    Toast.makeText(this, "Délai des rappels défini à ${delayOptions[which]}", Toast.LENGTH_SHORT).show()
+                    Log.d("MainActivity", "Délai des rappels défini à $selectedDelay minutes")
+                    dialog.dismiss()
+                }
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
+    }
+
+    private fun showCustomDelayDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(android.R.layout.simple_list_item_1, null)
+        val editText = EditText(this).apply {
+            hint = "Entrez le délai en minutes (ex: 45)"
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER
+            setText(sharedPreferences.getInt("reminderDelayMinutes", 5).toString())
+        }
+        
+        val container = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(50, 30, 50, 30)
+            addView(editText)
+        }
+
+        AlertDialog.Builder(this)
+            .setTitle("Délai personnalisé")
+            .setView(container)
+            .setPositiveButton("OK") { dialog, _ ->
+                val customDelay = editText.text.toString().toIntOrNull()
+                if (customDelay != null && customDelay >= 0) {
+                    sharedPreferences.edit().putInt("reminderDelayMinutes", customDelay).apply()
+                    updateReminderDelayButtonState()
+                    NotificationHelper.scheduleNextClassNotification(this)
+                    Toast.makeText(this, "Délai personnalisé défini à $customDelay minutes", Toast.LENGTH_SHORT).show()
+                    Log.d("MainActivity", "Délai personnalisé défini à $customDelay minutes")
+                } else {
+                    Toast.makeText(this, "Veuillez entrer un nombre valide", Toast.LENGTH_SHORT).show()
+                }
+            }
+            .setNegativeButton("Annuler", null)
+            .show()
     }
 
     private fun showSetCourseDaysDialog() {
@@ -365,6 +458,7 @@ class MainActivity : AppCompatActivity() {
         updateBatteryOptimizationButtonState()
         updateCourseDaysButtonState()
         updateVacationPauseButtonState()
+        updateReminderDelayButtonState()
         updateAppInfoDisplay() // Mettre à jour l'affichage de la version et du pseudo
     }
 
@@ -953,6 +1047,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    // Met à jour le texte du bouton de délai des rappels
+    private fun updateReminderDelayButtonState() {
+        val delayMinutes = sharedPreferences.getInt("reminderDelayMinutes", 5)
+        val delayText = when (delayMinutes) {
+            0 -> "Immédiat"
+            1 -> "1 min"
+            60 -> "1 heure"
+            else -> "$delayMinutes min"
+        }
+        setReminderDelayButton.text = "Délai des rappels: $delayText"
+    }
+
     // NOUVELLE FONCTION : Met à jour l'affichage de la version et du pseudo
     private fun updateAppInfoDisplay() {
         try {
@@ -964,8 +1070,66 @@ class MainActivity : AppCompatActivity() {
             appVersionText.text = "Version: N/A"
         }
 
-        // Définissez votre pseudo ici
-        val userName = "Harry456/7" // Vous pouvez changer cela à "Harry4567" si vous préférez
+        val sessionManager = com.example.franwan.auth.SessionManager(this)
+        val userName = if (sessionManager.isGuestMode()) {
+            "Invité"
+        } else {
+            sessionManager.getUserDisplayName() ?: "Utilisateur"
+        }
         appUserText.text = "Utilisateur: $userName"
+    }
+
+    // NOUVELLE FONCTION : Affiche le menu des paramètres
+    private fun showSettingsMenu() {
+        val sessionManager = SessionManager(this)
+        val popupMenu = PopupMenu(this, settingsButton)
+        
+        if (sessionManager.isGuestMode()) {
+            // Mode invité : option pour se connecter
+            popupMenu.menu.add("Se connecter")
+        } else {
+            // Mode connecté : afficher les infos du compte et option de déconnexion
+            val displayName = sessionManager.getUserDisplayName() ?: "Utilisateur"
+            popupMenu.menu.add("Compte: $displayName")
+            popupMenu.menu.add("Se déconnecter")
+        }
+        
+        popupMenu.setOnMenuItemClickListener { menuItem ->
+            when (menuItem.title) {
+                "Se connecter" -> {
+                    // Désactiver le mode invité et rediriger vers la page de connexion
+                    sessionManager.setGuestMode(false)
+                    startActivity(Intent(this, LoginActivity::class.java))
+                    finish()
+                }
+                "Se déconnecter" -> {
+                    // Afficher une confirmation de déconnexion
+                    AlertDialog.Builder(this)
+                        .setTitle("Se déconnecter")
+                        .setMessage("Voulez-vous vraiment vous déconnecter ?")
+                        .setPositiveButton("Déconnecter") { _, _ ->
+                            sessionManager.clearSession()
+                            startActivity(Intent(this, LoginActivity::class.java))
+                            finish()
+                        }
+                        .setNegativeButton("Annuler", null)
+                        .show()
+                }
+                else -> {
+                    // Afficher les informations du compte
+                    if (menuItem.title.toString().startsWith("Compte:")) {
+                        val displayName = sessionManager.getUserDisplayName() ?: "Utilisateur"
+                        AlertDialog.Builder(this)
+                            .setTitle("Informations du compte")
+                            .setMessage("Pseudo: $displayName")
+                            .setPositiveButton("OK", null)
+                            .show()
+                    }
+                }
+            }
+            true
+        }
+        
+        popupMenu.show()
     }
 }
