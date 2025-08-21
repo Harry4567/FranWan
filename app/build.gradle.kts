@@ -11,10 +11,16 @@ android {
         applicationId = "com.example.franwan"
         minSdk = 24
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.02"
+        versionCode = 3
+        versionName = "1.03"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        
+        // Expose API base URL from environment or gradle.properties; avoid relying on local.properties
+        val apiBaseUrl = System.getenv("API_BASE_URL")
+            ?: (project.findProperty("API_BASE_URL") as String?)
+            ?: "https://franwan.rf.gd/api/"
+        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
     buildTypes {
@@ -36,14 +42,6 @@ android {
 
     buildFeatures {
         buildConfig = true
-    }
-
-    // Expose API base URL from environment or gradle.properties; avoid relying on local.properties
-    val apiBaseUrl = System.getenv("API_BASE_URL")
-        ?: (project.findProperty("API_BASE_URL") as String?)
-        ?: "https://franwan.rf.gd/api/"
-    defaultConfig {
-        buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 }
 
