@@ -1,3 +1,5 @@
+[![Soutenir sur Tipeee](https://franwan.rf.gd/images/tipeee.svg)](https://fr.tipeee.com/harry456)
+
 # FranWan
 
 FranWan est une application mobile opensource vous permettant de recevoir une notification lors du début de votre prochain cours, avec le nom du cours ainsi que la salle.
@@ -8,8 +10,8 @@ FranWan est partit d'un projet existant, commencé au lycée, par un groupe de 3
 Dans les prochaines mises à jours de FranWan, de nouvelles fonctionnalités devraient arrivés :
 
 - Pouvoir importer ses cours directement sur l'application
-- Avoir la possibilité de gérer la notification de rappel : pouvoir la définir un temps voulu avant le cours
+- Avoir la possibilité de pouvoir avoir plusieurs semaines différentes avec un emploi du temps différent (1 semaine/2)
 
 ### Responsabilité
 
-FranWan contient sûrement des failles, et Harry4567, développeur de cette application, avec gemini, décline toute responsabilité en cas de piratage à cause de FranWan
+FranWan contient sûrement des failles, et Harry4567, développeur de cette application, décline toute responsabilité en cas de piratage ou autres cas similaires à cause de FranWan
