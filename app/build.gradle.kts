@@ -11,15 +11,15 @@ android {
         applicationId = "com.example.franwan"
         minSdk = 24
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.03"
+        versionCode = 4
+        versionName = "1.04"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
         // Expose API base URL from environment or gradle.properties; avoid relying on local.properties
         val apiBaseUrl = System.getenv("API_BASE_URL")
             ?: (project.findProperty("API_BASE_URL") as String?)
-            ?: "https://franwan.rf.gd/api/"
+            ?: "https://api.franwan.rf.gd/api/"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 
@@ -64,4 +64,8 @@ dependencies {
 
     // Secure storage
     implementation("androidx.security:security-crypto:1.1.0")
+    
+    // PDF processing
+    implementation("com.tom-roush:pdfbox-android:2.0.27.0")
+    implementation("androidx.documentfile:documentfile:1.0.1")
 }

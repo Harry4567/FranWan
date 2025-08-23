@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Supprimer par nom de cours"
+        android:textSize="18sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="20dp"
+        android:textColor="#2C3E50"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Entrez le nom du cours à supprimer (ou une partie du nom) :"
+        android:textSize="14sp"
+        android:layout_marginBottom="15dp"
+        android:textColor="#34495E"/>
+
+    <EditText
+        android:id="@+id/courseNameInput"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Ex: Mathématiques, Physique, etc."
+        android:inputType="text"
+        android:padding="12dp"
+        android:background="@drawable/rounded_edittext_background"
+        android:layout_marginBottom="20dp"/>
+
+    <TextView
+        android:id="@+id/matchingCoursesText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="12sp"
+        android:gravity="center"
+        android:layout_marginBottom="20dp"
+        android:textColor="#27AE60"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center">
+
+        <Button
+            android:id="@+id/cancelButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="❌ Annuler"
+            android:backgroundTint="#95A5A6"
+            android:textColor="@android:color/white"
+            android:padding="12dp"
+            android:layout_marginEnd="8dp"/>
+
+        <Button
+            android:id="@+id/deleteButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="🗑️ Supprimer"
+            android:backgroundTint="#E74C3C"
+            android:textColor="@android:color/white"
+            android:padding="12dp"
+            android:layout_marginStart="8dp"
+            android:enabled="false"/>
+
+    </LinearLayout>
+
+</LinearLayout>

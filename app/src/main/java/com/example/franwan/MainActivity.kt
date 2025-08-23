@@ -6,6 +6,7 @@ import android.app.TimePickerDialog
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.graphics.Color
 import android.net.Uri
 import android.os.Build
@@ -14,6 +15,7 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.provider.Settings
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -23,16 +25,15 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import com.example.franwan.auth.AuthRepository
+import com.example.franwan.auth.LoginActivity
+import com.example.franwan.auth.SessionManager
+import com.example.franwan.utils.PdfParser
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 import java.text.SimpleDateFormat
 import java.util.*
 import java.util.concurrent.TimeUnit
-import android.util.Log
-import android.widget.Switch
-import com.example.franwan.auth.SessionManager
-import com.example.franwan.auth.LoginActivity
-import com.example.franwan.auth.AuthRepository
  
 
 // Modèle de données pour un cours
@@ -41,7 +42,8 @@ data class ClassItem(
     val time: String,
     val course: String,
     val room: String,
-    var dateTime: Long = 0L
+    var dateTime: Long = 0L,
+    val week: Int = 1 // 1 = Semaine 1, 2 = Semaine 2
 )
 
 // Modèle de données pour les changements quotidiens
@@ -78,6 +80,14 @@ class MainActivity : AppCompatActivity() {
     private lateinit var appVersionText: TextView // NOUVEAU
     private lateinit var appUserText: TextView    // NOUVEAU
     private lateinit var settingsButton: ImageButton // NOUVEAU
+    private lateinit var importPdfButton: Button // NOUVEAU
+    private lateinit var bulkDeleteButton: Button // NOUVEAU
+    
+    // Sélecteur de semaine
+    private lateinit var weekSelectorLayout: LinearLayout
+    private lateinit var week1Button: Button
+    private lateinit var week2Button: Button
+    private lateinit var currentWeekIndicator: TextView
  
 
     // Adaptateur pour le RecyclerView de l'emploi du temps du jour
@@ -91,6 +101,11 @@ class MainActivity : AppCompatActivity() {
     private var schedule: MutableList<ClassItem> = mutableListOf()
     private var dailyChanges: MutableMap<String, MutableList<DailyChange>> = mutableMapOf()
     private var selectedCourseDays: MutableSet<String> = mutableSetOf() // Jours de cours sélectionnés
+    
+    // Système de semaines multiples
+    private var currentWeek: Int = 1 // Semaine active (1 ou 2)
+    private var week1Schedule: MutableList<ClassItem> = mutableListOf()
+    private var week2Schedule: MutableList<ClassItem> = mutableListOf()
 
     // Variables pour la pause vacances
     private var isVacationModeActive: Boolean = false
@@ -98,6 +113,24 @@ class MainActivity : AppCompatActivity() {
 
     // Gestion du temps
     private val handler = Handler(Looper.getMainLooper())
+    
+    // Importation PDF
+    private lateinit var pdfParser: PdfParser
+    private var selectedPdfUri: Uri? = null
+    
+    // Variables pour la suppression en masse
+    private var currentDeleteAction: (() -> Unit)? = null
+    private var currentDeleteDescription = ""
+    
+    // Lanceur d'activité pour sélectionner un fichier PDF
+    private val selectPdfLauncher = registerForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri: Uri? ->
+        uri?.let {
+            selectedPdfUri = it
+            showImportPdfDialog()
+        }
+    }
     private val updateTimeRunnable = object : Runnable {
         override fun run() {
             findAndDisplayNextClassAndUI()
@@ -116,7 +149,7 @@ class MainActivity : AppCompatActivity() {
         ActivityResultContracts.RequestPermission()
     ) { isGranted: Boolean ->
         if (isGranted) {
-            Toast.makeText(this, "Permission de notification accordée !", Toast.LENGTH_SHORT).show()
+            // Suppression du Toast pour éviter l'affichage répétitif
             NotificationHelper.scheduleNextClassNotification(this)
             Log.d("MainActivity", "Permission POST_NOTIFICATIONS accordée. Notifications planifiées.")
         } else {
@@ -156,6 +189,14 @@ class MainActivity : AppCompatActivity() {
         appVersionText = findViewById(R.id.appVersionText) // NOUVEAU
         appUserText = findViewById(R.id.appUserText)       // NOUVEAU
         settingsButton = findViewById(R.id.settingsButton) // NOUVEAU
+        importPdfButton = findViewById(R.id.importPdfButton) // NOUVEAU
+        bulkDeleteButton = findViewById(R.id.bulkDeleteButton) // NOUVEAU
+        
+        // Initialiser le sélecteur de semaine
+        weekSelectorLayout = findViewById(R.id.weekSelectorLayout)
+        week1Button = findViewById(R.id.week1Button)
+        week2Button = findViewById(R.id.week2Button)
+        currentWeekIndicator = findViewById(R.id.currentWeekIndicator)
 
         sharedPreferences = getSharedPreferences("ClassSchedulerApp", Context.MODE_PRIVATE)
 
@@ -167,8 +208,15 @@ class MainActivity : AppCompatActivity() {
         todayScheduleAdapter = ClassAdapter(mutableListOf(), false, INTERNAL_DAILY_REMINDER_COURSE_NAME) { _, _ -> /* Pas d'action de suppression dans la vue principale */ }
         todayScheduleRecyclerView.adapter = todayScheduleAdapter
 
-        requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        // Vérifier si la permission de notification est déjà accordée avant de la demander
+        if (checkSelfPermission(android.Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+        }
         NotificationHelper.createNotificationChannels(this)
+        
+        // Initialiser le parser PDF
+        PdfParser.initPdfBox(this)
+        pdfParser = PdfParser(this)
 
         simulateNotificationButton.setOnClickListener {
             NotificationHelper.showNotification(
@@ -221,11 +269,35 @@ class MainActivity : AppCompatActivity() {
             showSettingsMenu()
             Log.d("MainActivity", "Bouton Paramètres cliqué.")
         }
+        
+        importPdfButton.setOnClickListener {
+            selectPdfLauncher.launch("application/pdf")
+            Log.d("MainActivity", "Bouton Importer PDF cliqué.")
+        }
+        
+        bulkDeleteButton.setOnClickListener {
+            showBulkDeleteDialog()
+            Log.d("MainActivity", "Bouton Supprimer en masse cliqué.")
+        }
+        
+        // Listeners pour le sélecteur de semaine
+        week1Button.setOnClickListener {
+            switchWeek(1)
+            Log.d("MainActivity", "Bouton Semaine 1 cliqué")
+        }
+        
+        week2Button.setOnClickListener {
+            switchWeek(2)
+            Log.d("MainActivity", "Bouton Semaine 2 cliqué")
+        }
 
  
 
         // Mettre à jour l'affichage de la version et du pseudo
         updateAppInfoDisplay() // NOUVEAU
+        
+        // Initialiser l'interface du sélecteur de semaine
+        updateWeekSelectorUI()
 
         updateTodayScheduleDisplay()
 
@@ -471,13 +543,49 @@ class MainActivity : AppCompatActivity() {
 
     // --- Gestion des données ---
     private fun loadData() {
+        // Charger les semaines multiples
+        val week1Json = sharedPreferences.getString("week1Schedule", null)
+        if (week1Json != null) {
+            val type = object : TypeToken<MutableList<ClassItem>>() {}.type
+            week1Schedule = gson.fromJson(week1Json, type)
+        } else {
+            week1Schedule = mutableListOf()
+        }
+        
+        val week2Json = sharedPreferences.getString("week2Schedule", null)
+        if (week2Json != null) {
+            val type = object : TypeToken<MutableList<ClassItem>>() {}.type
+            week2Schedule = gson.fromJson(week2Json, type)
+        } else {
+            week2Schedule = mutableListOf()
+        }
+        
+        // Charger la semaine active
+        currentWeek = sharedPreferences.getInt("currentWeek", 1)
+        
+        // Charger l'ancien format pour la compatibilité
         val scheduleJson = sharedPreferences.getString("classSchedule", null)
         if (scheduleJson != null) {
-            val type = object : TypeToken<MutableList<ClassItem>>() {}.type
-            schedule = gson.fromJson(scheduleJson, type)
-        } else {
-            schedule = mutableListOf()
+            try {
+                val type = object : TypeToken<MutableList<ClassItem>>() {}.type
+                val oldSchedule: MutableList<ClassItem>? = gson.fromJson(scheduleJson, type)
+                // Migrer les anciens cours vers la semaine 1
+                if (oldSchedule != null && oldSchedule.isNotEmpty()) {
+                    val migratedCourses = oldSchedule.map { course -> 
+                        course.copy(week = 1) 
+                    }
+                    week1Schedule.addAll(migratedCourses)
+                    // Supprimer l'ancien format
+                    sharedPreferences.edit().remove("classSchedule").apply()
+                    Log.d("MainActivity", "Migration de ${migratedCourses.size} cours vers la semaine 1")
+                }
+            } catch (e: Exception) {
+                Log.e("MainActivity", "Erreur lors de la migration des anciens cours", e)
+            }
         }
+        
+        // Mettre à jour le schedule actuel selon la semaine active
+        updateCurrentSchedule()
 
         val dailyChangesJson = sharedPreferences.getString("dailyClassChanges", null)
         if (dailyChangesJson != null) {
@@ -508,7 +616,53 @@ class MainActivity : AppCompatActivity() {
             Log.d("MainActivity", "Pause vacances expirée au chargement. Désactivée.")
         }
 
-        Log.d("MainActivity", "Données chargées. Schedule: ${schedule.size} items, DailyChanges: ${dailyChanges.size} jours, Jours de cours: $selectedCourseDays, Pause vacances: $isVacationModeActive jusqu'à ${if (vacationEndDateMillis > 0) SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(vacationEndDateMillis)) else "N/A"}.")
+        Log.d("MainActivity", "Données chargées. Semaine $currentWeek active. Semaine 1: ${week1Schedule.size} cours, Semaine 2: ${week2Schedule.size} cours, DailyChanges: ${dailyChanges.size} jours, Jours de cours: $selectedCourseDays, Pause vacances: $isVacationModeActive jusqu'à ${if (vacationEndDateMillis > 0) SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date(vacationEndDateMillis)) else "N/A"}.")
+    }
+    
+    // NOUVELLE FONCTION : Met à jour le schedule actuel selon la semaine active
+    private fun updateCurrentSchedule() {
+        schedule = when (currentWeek) {
+            1 -> week1Schedule.toMutableList()
+            2 -> week2Schedule.toMutableList()
+            else -> week1Schedule.toMutableList()
+        }
+        Log.d("MainActivity", "Schedule mis à jour pour la semaine $currentWeek (${schedule.size} cours)")
+    }
+    
+    // NOUVELLE FONCTION : Change de semaine
+    private fun switchWeek(newWeek: Int) {
+        if (newWeek != currentWeek && newWeek in 1..2) {
+            // Sauvegarder les modifications de la semaine actuelle
+            when (currentWeek) {
+                1 -> week1Schedule = schedule.toMutableList()
+                2 -> week2Schedule = schedule.toMutableList()
+            }
+            
+            // Changer de semaine
+            currentWeek = newWeek
+            updateCurrentSchedule()
+            
+            // Mettre à jour l'interface
+            updateWeekSelectorUI()
+            updateTodayScheduleDisplay()
+            
+            // Sauvegarder
+            saveData()
+            
+            Log.d("MainActivity", "Changement vers la semaine $currentWeek (${schedule.size} cours)")
+        }
+    }
+    
+    // NOUVELLE FONCTION : Met à jour l'interface du sélecteur de semaine
+    private fun updateWeekSelectorUI() {
+        week1Button.backgroundTintList = ContextCompat.getColorStateList(this, 
+            if (currentWeek == 1) android.R.color.holo_blue_dark else android.R.color.darker_gray)
+        week2Button.backgroundTintList = ContextCompat.getColorStateList(this, 
+            if (currentWeek == 2) android.R.color.holo_blue_dark else android.R.color.darker_gray)
+        
+        currentWeekIndicator.text = "Semaine $currentWeek active"
+        currentWeekIndicator.setTextColor(ContextCompat.getColor(this, 
+            if (currentWeek == 1) android.R.color.holo_blue_dark else android.R.color.holo_green_dark))
     }
 
     private fun saveData() {
@@ -519,8 +673,14 @@ class MainActivity : AppCompatActivity() {
         // Sauvegarder l'état de la pause vacances
         editor.putBoolean("isVacationModeActive", isVacationModeActive)
         editor.putLong("vacationEndDateMillis", vacationEndDateMillis)
+        
+        // Sauvegarder les semaines multiples
+        editor.putString("week1Schedule", gson.toJson(week1Schedule))
+        editor.putString("week2Schedule", gson.toJson(week2Schedule))
+        editor.putInt("currentWeek", currentWeek)
+        
         editor.apply()
-        Log.d("MainActivity", "Données sauvegardées.")
+        Log.d("MainActivity", "Données sauvegardées (semaine $currentWeek active).")
     }
 
     // --- Logique du prochain cours et mise à jour UI ---
@@ -604,10 +764,11 @@ class MainActivity : AppCompatActivity() {
             nextCourseText.text = "${nextClass.course} en salle ${nextClass.room}"
             nextCourseTime.text = "(${nextClass.day} à ${nextClass.time})"
             timeLeftText.text = "Commence dans : ${if (hours > 0) "${hours}h " else ""}${minutes}m ${seconds}s"
+            timeLeftText.visibility = View.VISIBLE
         } else {
             nextCourseText.text = "Aucun cours à venir."
             nextCourseTime.text = ""
-            timeLeftText.text = ""
+            timeLeftText.visibility = View.GONE
         }
     }
 
@@ -1131,5 +1292,355 @@ class MainActivity : AppCompatActivity() {
         }
         
         popupMenu.show()
+    }
+    
+    // NOUVELLE FONCTION : Affiche le dialogue d'importation PDF
+    private fun showImportPdfDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_import_pdf, null)
+        val builder = AlertDialog.Builder(this)
+        builder.setView(dialogView)
+        val dialog = builder.create()
+        
+        val selectPdfButton: Button = dialogView.findViewById(R.id.selectPdfButton)
+        val selectedFileText: TextView = dialogView.findViewById(R.id.selectedFileText)
+        val importButton: Button = dialogView.findViewById(R.id.importButton)
+        val cancelButton: Button = dialogView.findViewById(R.id.cancelButton)
+        val importProgressBar: ProgressBar = dialogView.findViewById(R.id.importProgressBar)
+        val importStatusText: TextView = dialogView.findViewById(R.id.importStatusText)
+        
+        // Afficher le nom du fichier sélectionné
+        selectedPdfUri?.let { uri ->
+            val fileName = uri.lastPathSegment ?: "Fichier PDF"
+            selectedFileText.text = "Fichier sélectionné: $fileName"
+            importButton.isEnabled = true
+        }
+        
+        // Bouton pour sélectionner un autre fichier
+        selectPdfButton.setOnClickListener {
+            selectPdfLauncher.launch("application/pdf")
+            dialog.dismiss()
+        }
+        
+        // Bouton d'importation
+        importButton.setOnClickListener {
+            importPdfFile(uri = selectedPdfUri!!, dialog, importProgressBar, importStatusText, importButton)
+        }
+        
+        // Bouton d'annulation
+        cancelButton.setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        dialog.show()
+    }
+    
+    // NOUVELLE FONCTION : Importe le fichier PDF sélectionné
+    private fun importPdfFile(uri: Uri, dialog: AlertDialog, progressBar: ProgressBar, statusText: TextView, importButton: Button) {
+        progressBar.visibility = View.VISIBLE
+        importButton.isEnabled = false
+        statusText.text = "Importation en cours..."
+        
+        // Exécuter l'importation dans un thread séparé
+        Thread {
+            try {
+                val inputStream = contentResolver.openInputStream(uri)
+                val courses = pdfParser.parsePdf(inputStream!!)
+                inputStream?.close()
+                
+                // Mettre à jour l'UI sur le thread principal
+                runOnUiThread {
+                    progressBar.visibility = View.GONE
+                    
+                    if (courses.isNotEmpty()) {
+                        // Ajouter les cours importés à la semaine active
+                        val coursesWithWeek = courses.map { it.copy(week = currentWeek) }
+                        schedule.addAll(coursesWithWeek)
+                        
+                        // Mettre à jour la liste de la semaine active
+                        when (currentWeek) {
+                            1 -> week1Schedule.addAll(coursesWithWeek)
+                            2 -> week2Schedule.addAll(coursesWithWeek)
+                        }
+                        
+                        saveData()
+                        updateTodayScheduleDisplay()
+                        
+                        statusText.text = "${courses.size} cours importés dans la semaine $currentWeek !"
+                        statusText.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark))
+                        
+                        // Fermer le dialogue après 2 secondes
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            dialog.dismiss()
+                            Toast.makeText(this, "${courses.size} cours importés dans la semaine $currentWeek !", Toast.LENGTH_LONG).show()
+                        }, 2000)
+                        
+                    } else {
+                        statusText.text = "Aucun cours trouvé dans le PDF. Vérifiez le format."
+                        statusText.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
+                        importButton.isEnabled = true
+                    }
+                }
+                
+            } catch (e: Exception) {
+                runOnUiThread {
+                    progressBar.visibility = View.GONE
+                    statusText.text = "Erreur lors de l'importation: ${e.message}"
+                    statusText.setTextColor(ContextCompat.getColor(this, android.R.color.holo_red_dark))
+                    importButton.isEnabled = true
+                    Log.e("MainActivity", "Erreur lors de l'importation PDF", e)
+                }
+            }
+        }.start()
+    }
+    
+    // NOUVELLE FONCTION : Affiche le dialogue de suppression en masse
+    private fun showBulkDeleteDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_bulk_delete_courses, null)
+        val builder = AlertDialog.Builder(this)
+        builder.setView(dialogView)
+        val dialog = builder.create()
+        
+        val deleteAllButton: Button = dialogView.findViewById(R.id.deleteAllCoursesButton)
+        val deleteMondayButton: Button = dialogView.findViewById(R.id.deleteMondayButton)
+        val deleteTuesdayButton: Button = dialogView.findViewById(R.id.deleteTuesdayButton)
+        val deleteWednesdayButton: Button = dialogView.findViewById(R.id.deleteWednesdayButton)
+        val deleteThursdayButton: Button = dialogView.findViewById(R.id.deleteThursdayButton)
+        val deleteFridayButton: Button = dialogView.findViewById(R.id.deleteFridayButton)
+        val deleteSaturdayButton: Button = dialogView.findViewById(R.id.deleteSaturdayButton)
+        val deleteSundayButton: Button = dialogView.findViewById(R.id.deleteSundayButton)
+        val deleteByCourseTypeButton: Button = dialogView.findViewById(R.id.deleteByCourseTypeButton)
+        val statisticsText: TextView = dialogView.findViewById(R.id.statisticsText)
+        val cancelButton: Button = dialogView.findViewById(R.id.cancelButton)
+        
+        // Mettre à jour les statistiques
+        updateDeleteStatistics(statisticsText)
+        
+        // Supprimer tous les cours - APPROCHE DIRECTE
+        deleteAllButton.setOnClickListener {
+            Log.d("MainActivity", "Bouton 'Supprimer TOUS' cliqué")
+            val totalCourses = schedule.size
+            if (totalCourses > 0) {
+                AlertDialog.Builder(this)
+                    .setTitle("Confirmation de suppression")
+                    .setMessage("Êtes-vous sûr de vouloir supprimer TOUS les cours ($totalCourses cours) ?\n\n⚠️ Cette action est irréversible !")
+                    .setPositiveButton("🗑️ Supprimer") { _, _ ->
+                        Log.d("MainActivity", "Suppression de tous les cours confirmée")
+                        deleteAllCourses()
+                        dialog.dismiss()
+                        Toast.makeText(this, "Tous les cours supprimés avec succès", Toast.LENGTH_LONG).show()
+                    }
+                    .setNegativeButton("❌ Annuler", null)
+                    .show()
+            } else {
+                Toast.makeText(this, "Aucun cours à supprimer", Toast.LENGTH_SHORT).show()
+            }
+        }
+        
+        // Supprimer par jour - APPROCHE DIRECTE
+        val dayButtons = mapOf(
+            "Lundi" to deleteMondayButton,
+            "Mardi" to deleteTuesdayButton,
+            "Mercredi" to deleteWednesdayButton,
+            "Jeudi" to deleteThursdayButton,
+            "Vendredi" to deleteFridayButton,
+            "Samedi" to deleteSaturdayButton,
+            "Dimanche" to deleteSundayButton
+        )
+        
+        dayButtons.forEach { (day, button) ->
+            button.setOnClickListener {
+                Log.d("MainActivity", "Bouton $day cliqué")
+                val dayCourses = schedule.filter { it.day == day }
+                Log.d("MainActivity", "Cours trouvés pour $day : ${dayCourses.size}")
+                if (dayCourses.isNotEmpty()) {
+                    AlertDialog.Builder(this)
+                        .setTitle("Confirmation de suppression")
+                        .setMessage("Êtes-vous sûr de vouloir supprimer tous les cours du $day (${dayCourses.size} cours) ?\n\n⚠️ Cette action est irréversible !")
+                        .setPositiveButton("🗑️ Supprimer") { _, _ ->
+                            Log.d("MainActivity", "Suppression des cours du $day confirmée")
+                            deleteCoursesByDay(day)
+                            dialog.dismiss()
+                            Toast.makeText(this, "Cours du $day supprimés avec succès", Toast.LENGTH_LONG).show()
+                        }
+                        .setNegativeButton("❌ Annuler", null)
+                        .show()
+                } else {
+                    Toast.makeText(this, "Aucun cours trouvé pour le $day", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+        
+        // Supprimer par type de cours
+        deleteByCourseTypeButton.setOnClickListener {
+            showDeleteByCourseNameDialog()
+            dialog.dismiss()
+        }
+        
+        // Annuler
+        cancelButton.setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        dialog.show()
+    }
+    
+    // NOUVELLE FONCTION : Affiche le dialogue de suppression par nom de cours
+    private fun showDeleteByCourseNameDialog() {
+        val dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_delete_by_course_name, null)
+        val builder = AlertDialog.Builder(this)
+        builder.setView(dialogView)
+        val dialog = builder.create()
+        
+        val courseNameInput: EditText = dialogView.findViewById(R.id.courseNameInput)
+        val matchingCoursesText: TextView = dialogView.findViewById(R.id.matchingCoursesText)
+        val deleteButton: Button = dialogView.findViewById(R.id.deleteButton)
+        val cancelButton: Button = dialogView.findViewById(R.id.cancelButton)
+        
+        // Recherche en temps réel
+        courseNameInput.addTextChangedListener(object : android.text.TextWatcher {
+            override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
+            override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {}
+            override fun afterTextChanged(s: android.text.Editable?) {
+                val searchTerm = s.toString().trim()
+                if (searchTerm.isNotEmpty()) {
+                    val matchingCourses = schedule.filter { 
+                        it.course.contains(searchTerm, ignoreCase = true) 
+                    }
+                    if (matchingCourses.isNotEmpty()) {
+                        matchingCoursesText.text = "Cours trouvés : ${matchingCourses.size}\n" +
+                            matchingCourses.take(3).joinToString("\n") { "• ${it.course} (${it.day} ${it.time})" } +
+                            if (matchingCourses.size > 3) "\n..." else ""
+                        deleteButton.isEnabled = true
+                    } else {
+                        matchingCoursesText.text = "Aucun cours trouvé"
+                        deleteButton.isEnabled = false
+                    }
+                } else {
+                    matchingCoursesText.text = ""
+                    deleteButton.isEnabled = false
+                }
+            }
+        })
+        
+        // Supprimer
+        deleteButton.setOnClickListener {
+            val searchTerm = courseNameInput.text.toString().trim()
+            if (searchTerm.isNotEmpty()) {
+                val matchingCourses = schedule.filter { 
+                    it.course.contains(searchTerm, ignoreCase = true) 
+                }
+                if (matchingCourses.isNotEmpty()) {
+                    AlertDialog.Builder(this)
+                        .setTitle("Confirmation de suppression")
+                        .setMessage("Supprimer ${matchingCourses.size} cours contenant \"$searchTerm\" ?\n\n⚠️ Cette action est irréversible !")
+                        .setPositiveButton("🗑️ Supprimer") { _, _ ->
+                            deleteCoursesBySearchTerm(searchTerm)
+                            dialog.dismiss()
+                            Toast.makeText(this, "${matchingCourses.size} cours supprimés", Toast.LENGTH_LONG).show()
+                        }
+                        .setNegativeButton("❌ Annuler", null)
+                        .show()
+                }
+            }
+        }
+        
+        // Annuler
+        cancelButton.setOnClickListener {
+            dialog.dismiss()
+        }
+        
+        dialog.show()
+    }
+    
+    // NOUVELLE FONCTION : Met à jour les statistiques de suppression
+    private fun updateDeleteStatistics(statisticsText: TextView) {
+        val totalCourses = schedule.size
+        val coursesByDay = schedule.groupBy { it.day }
+        val week1Total = week1Schedule.size
+        val week2Total = week2Schedule.size
+        
+        val stats = buildString {
+            append("📊 Statistiques des semaines :\n")
+            append("Semaine 1 : $week1Total cours\n")
+            append("Semaine 2 : $week2Total cours\n")
+            append("Semaine active ($currentWeek) : $totalCourses cours\n")
+            append("\n📅 Répartition par jour :\n")
+            coursesByDay.forEach { (day, courses) ->
+                append("$day : ${courses.size} cours\n")
+            }
+        }
+        
+        statisticsText.text = stats
+    }
+    
+    // NOUVELLE FONCTION : Supprime tous les cours
+    private fun deleteAllCourses() {
+        Log.d("MainActivity", "=== DÉBUT deleteAllCourses ===")
+        val deletedCount = schedule.size
+        Log.d("MainActivity", "Nombre de cours avant suppression : $deletedCount")
+        
+        // Vider la semaine active
+        schedule.clear()
+        
+        // Mettre à jour la liste de la semaine active
+        when (currentWeek) {
+            1 -> week1Schedule.clear()
+            2 -> week2Schedule.clear()
+        }
+        
+        Log.d("MainActivity", "Liste des cours vidée, nouvelle taille : ${schedule.size}")
+        saveData()
+        Log.d("MainActivity", "Données sauvegardées")
+        updateTodayScheduleDisplay()
+        Log.d("MainActivity", "Affichage mis à jour")
+        Log.d("MainActivity", "=== FIN deleteAllCourses : $deletedCount cours supprimés de la semaine $currentWeek ===")
+    }
+    
+    // NOUVELLE FONCTION : Supprime tous les cours d'un jour spécifique
+    private fun deleteCoursesByDay(day: String) {
+        Log.d("MainActivity", "=== DÉBUT deleteCoursesByDay pour $day ===")
+        val deletedCount = schedule.count { it.day == day }
+        Log.d("MainActivity", "Nombre de cours pour $day avant suppression : $deletedCount")
+        // Supprimer de la semaine active
+        schedule.removeAll { it.day == day }
+        
+        // Mettre à jour la liste de la semaine active
+        when (currentWeek) {
+            1 -> week1Schedule.removeAll { it.day == day }
+            2 -> week2Schedule.removeAll { it.day == day }
+        }
+        
+        Log.d("MainActivity", "Cours du $day supprimés, nouvelle taille totale : ${schedule.size}")
+        saveData()
+        Log.d("MainActivity", "Données sauvegardées")
+        updateTodayScheduleDisplay()
+        Log.d("MainActivity", "Affichage mis à jour")
+        Log.d("MainActivity", "=== FIN deleteCoursesBySearchTerm : $deletedCount cours supprimés de la semaine $currentWeek ===")
+    }
+    
+    // NOUVELLE FONCTION : Supprime les cours par terme de recherche
+    private fun deleteCoursesBySearchTerm(searchTerm: String) {
+        Log.d("MainActivity", "=== DÉBUT deleteCoursesBySearchTerm pour \"$searchTerm\" ===")
+        val deletedCount = schedule.count { 
+            it.course.contains(searchTerm, ignoreCase = true) 
+        }
+        Log.d("MainActivity", "Nombre de cours contenant \"$searchTerm\" avant suppression : $deletedCount")
+        // Supprimer de la semaine active
+        schedule.removeAll { 
+            it.course.contains(searchTerm, ignoreCase = true) 
+        }
+        
+        // Mettre à jour la liste de la semaine active
+        when (currentWeek) {
+            1 -> week1Schedule.removeAll { it.course.contains(searchTerm, ignoreCase = true) }
+            2 -> week2Schedule.removeAll { it.course.contains(searchTerm, ignoreCase = true) }
+        }
+        
+        Log.d("MainActivity", "Cours supprimés, nouvelle taille totale : ${schedule.size}")
+        saveData()
+        Log.d("MainActivity", "Données sauvegardées")
+        updateTodayScheduleDisplay()
+        Log.d("MainActivity", "Affichage mis à jour")
+        Log.d("MainActivity", "=== FIN deleteCoursesByDay : $deletedCount cours supprimés de la semaine $currentWeek ===")
     }
 }

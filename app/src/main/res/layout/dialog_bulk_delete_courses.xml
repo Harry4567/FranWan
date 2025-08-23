@@ -1,0 +1,174 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="20dp">
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Suppression en masse des cours"
+        android:textSize="20sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="20dp"
+        android:textColor="#E74C3C"/>
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="⚠️ Attention : Cette action est irréversible !"
+        android:textSize="14sp"
+        android:gravity="center"
+        android:layout_marginBottom="20dp"
+        android:textColor="#E74C3C"
+        android:textStyle="bold"/>
+
+    <!-- Supprimer tous les cours -->
+    <Button
+        android:id="@+id/deleteAllCoursesButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🗑️ Supprimer TOUS les cours"
+        android:backgroundTint="#E74C3C"
+        android:textColor="@android:color/white"
+        android:padding="15dp"
+        android:layout_marginBottom="15dp"/>
+
+    <!-- Supprimer par jour -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Supprimer par jour :"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="10dp"
+        android:textColor="#2C3E50"/>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="15dp">
+
+        <Button
+            android:id="@+id/deleteMondayButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Lun"
+            android:backgroundTint="#3498DB"
+            android:textColor="@android:color/white"
+            android:padding="10dp"
+            android:layout_marginEnd="5dp"/>
+
+        <Button
+            android:id="@+id/deleteTuesdayButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Mar"
+            android:backgroundTint="#3498DB"
+            android:textColor="@android:color/white"
+            android:padding="10dp"
+            android:layout_marginEnd="5dp"/>
+
+        <Button
+            android:id="@+id/deleteWednesdayButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Mer"
+            android:backgroundTint="#3498DB"
+            android:textColor="@android:color/white"
+            android:padding="10dp"
+            android:layout_marginEnd="5dp"/>
+
+        <Button
+            android:id="@+id/deleteThursdayButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Jeu"
+            android:backgroundTint="#3498DB"
+            android:textColor="@android:color/white"
+            android:padding="10dp"
+            android:layout_marginEnd="5dp"/>
+
+        <Button
+            android:id="@+id/deleteFridayButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Ven"
+            android:backgroundTint="#3498DB"
+            android:textColor="@android:color/white"
+            android:padding="10dp"
+            android:layout_marginEnd="5dp"/>
+
+        <Button
+            android:id="@+id/deleteSaturdayButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Sam"
+            android:backgroundTint="#3498DB"
+            android:textColor="@android:color/white"
+            android:padding="10dp"
+            android:layout_marginEnd="5dp"/>
+
+        <Button
+            android:id="@+id/deleteSundayButton"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:text="Dim"
+            android:backgroundTint="#3498DB"
+            android:textColor="@android:color/white"
+            android:padding="10dp"/>
+    </LinearLayout>
+
+    <!-- Supprimer par type de cours -->
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Supprimer par type :"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:layout_marginBottom="10dp"
+        android:textColor="#2C3E50"/>
+
+    <Button
+        android:id="@+id/deleteByCourseTypeButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="🔍 Supprimer par nom de cours"
+        android:backgroundTint="#9B59B6"
+        android:textColor="@android:color/white"
+        android:padding="12dp"
+        android:layout_marginBottom="15dp"/>
+
+    <!-- Statistiques -->
+    <TextView
+        android:id="@+id/statisticsText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text=""
+        android:textSize="12sp"
+        android:gravity="center"
+        android:layout_marginBottom="20dp"
+        android:textColor="#7F8C8D"/>
+
+    <!-- Bouton d'action -->
+    <Button
+        android:id="@+id/cancelButton"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="❌ Fermer"
+        android:backgroundTint="#95A5A6"
+        android:textColor="@android:color/white"
+        android:padding="12dp"
+        android:layout_marginTop="10dp"/>
+
+</LinearLayout>
