@@ -9,8 +9,7 @@ FranWan est partit d'un projet existant, commencé au lycée, par un groupe de 3
 
 Dans les prochaines mises à jours de FranWan, de nouvelles fonctionnalités devraient arrivés :
 
-- Pouvoir importer ses cours directement sur l'application
-- Avoir la possibilité de pouvoir avoir plusieurs semaines différentes avec un emploi du temps différent (1 semaine/2)
+- Refonte du design
 
 ### Responsabilité
 
