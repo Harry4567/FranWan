@@ -11,6 +11,7 @@ Dans les prochaines mises à jours de FranWan, de nouvelles fonctionnalités dev
 
 - Modification du système d'importation via PDF pour le format Pronote
 - Possibilité d'exporter son emploi du temps FranWan
+- Refonte du design
 
 ### Responsabilité
 

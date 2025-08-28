@@ -4,7 +4,7 @@
 
 Le système de semaines multiples permet de gérer **deux emplois du temps différents** :
 - **Semaine 1** : Premier emploi du temps
-- **Semaine 2** : Deuxième emploi du temps (alternant)
+- **Semaine 2** : Deuxième emploi du temps
 
 ## ✨ Caractéristiques
 
@@ -110,26 +110,6 @@ Mardi : Y cours
 - Espacement optimisé pour une meilleure lisibilité
 - Intégration harmonieuse avec l'interface existante
 
-## 🔍 Dépannage
-
-### **Problème courant : Cours non visibles**
-```
-Vérifiez que vous êtes sur la bonne semaine
-↓
-Cliquez sur le bouton de la semaine souhaitée
-↓
-Les cours devraient apparaître
-```
-
-### **Problème courant : Suppression qui ne fonctionne pas**
-```
-Vérifiez que vous êtes sur la bonne semaine
-↓
-Les suppressions n'affectent que la semaine active
-↓
-Utilisez "🗑️ Supprimer en masse" pour la semaine active
-```
-
 ## 📈 Avantages
 
 1. **Flexibilité** : Gestion de deux emplois du temps différents
@@ -137,14 +117,5 @@ Utilisez "🗑️ Supprimer en masse" pour la semaine active
 3. **Efficacité** : Basculement rapide entre les semaines
 4. **Sécurité** : Sauvegarde automatique des modifications
 5. **Compatibilité** : Fonctionne avec l'ancien système
-
-## 🎯 Cas d'usage
-
-- **Étudiants** : Semaines paires/impaires
-- **Professeurs** : Groupes différents par semaine
-- **Entreprises** : Planning alterné
-- **Événements** : Programmes différents selon la semaine
-
----
 
 *Système développé pour FranWan - Gestionnaire d'emploi du temps intelligent* 🚀
