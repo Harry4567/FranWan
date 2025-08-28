@@ -13,8 +13,16 @@ data class LoginRequest(
 )
 
 data class LoginResponse(
+    @SerializedName("success") val success: Boolean,
+    @SerializedName("message") val message: String,
     @SerializedName("token") val token: String,
-    @SerializedName("displayName") val displayName: String?
+    @SerializedName("user") val user: UserData
+)
+
+data class UserData(
+    @SerializedName("id") val id: Int,
+    @SerializedName("email") val email: String,
+    @SerializedName("username") val username: String
 )
 
 interface ApiService {

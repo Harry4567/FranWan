@@ -12,7 +12,7 @@ class AuthRepository(private val sessionManager: SessionManager) {
                 val body = response.body()
                 if (body != null) {
                     sessionManager.saveAuthToken(body.token)
-                    body.displayName?.let { sessionManager.saveUserDisplayName(it) }
+                    body.user.username.let { sessionManager.saveUserDisplayName(it) }
                     Result.success(Unit)
                 } else {
                     Result.failure(IllegalStateException("Réponse vide"))
@@ -36,7 +36,7 @@ class AuthRepository(private val sessionManager: SessionManager) {
         return try {
             val response = NetworkModule.api.me("Bearer $token")
             if (response.isSuccessful) {
-                response.body()?.displayName?.let { sessionManager.saveUserDisplayName(it) }
+                response.body()?.user?.username?.let { sessionManager.saveUserDisplayName(it) }
                 Result.success(Unit)
             } else {
                 Log.e("AuthRepository", "Me HTTP error: ${response.code()}, body: ${response.errorBody()?.string()}")

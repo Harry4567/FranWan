@@ -1,11 +1,56 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-<color name="purple_200">#FFBB86FC</color>
-<color name="purple_500">#FF6200EE</color>
-<color name="purple_700">#FF3700B3</color>
-<color name="teal_200">#FF03DAC5</color>
-<color name="teal_700">#FF018786</color>
-<color name="black">#FF000000</color>
-<color name="white">#FFFFFFFF</color>
-<color name="colorPrimaryDark">#34495E</color> <!-- Une couleur foncée de votre choix -->
+    <!-- Couleurs principales -->
+    <color name="primary">#6366F1</color>
+    <color name="primary_dark">#4F46E5</color>
+    <color name="primary_light">#A5B4FC</color>
+    
+    <!-- Couleurs secondaires -->
+    <color name="secondary">#10B981</color>
+    <color name="secondary_dark">#059669</color>
+    <color name="secondary_light">#6EE7B7</color>
+    
+    <!-- Couleurs d'accent -->
+    <color name="accent">#F59E0B</color>
+    <color name="accent_dark">#D97706</color>
+    <color name="accent_light">#FCD34D</color>
+    
+    <!-- Couleurs de surface -->
+    <color name="surface">#FFFFFF</color>
+    <color name="surface_dark">#1F2937</color>
+    <color name="surface_light">#F9FAFB</color>
+    
+    <!-- Couleurs de fond -->
+    <color name="background">#F8FAFC</color>
+    <color name="background_dark">#111827</color>
+    
+    <!-- Couleurs de texte -->
+    <color name="text_primary">#1F2937</color>
+    <color name="text_secondary">#6B7280</color>
+    <color name="text_tertiary">#9CA3AF</color>
+    <color name="text_inverse">#FFFFFF</color>
+    
+    <!-- Couleurs d'état -->
+    <color name="success">#10B981</color>
+    <color name="warning">#F59E0B</color>
+    <color name="error">#EF4444</color>
+    <color name="info">#3B82F6</color>
+    
+    <!-- Couleurs de cours par jour -->
+    <color name="monday">#8B5CF6</color>
+    <color name="tuesday">#06B6D4</color>
+    <color name="wednesday">#10B981</color>
+    <color name="thursday">#F59E0B</color>
+    <color name="friday">#EF4444</color>
+    <color name="saturday">#EC4899</color>
+    <color name="sunday">#6B7280</color>
+    
+    <!-- Couleurs héritées pour compatibilité -->
+    <color name="purple_200">#A5B4FC</color>
+    <color name="purple_500">#6366F1</color>
+    <color name="purple_700">#4F46E5</color>
+    <color name="teal_200">#6EE7B7</color>
+    <color name="teal_700">#10B981</color>
+    <color name="black">#000000</color>
+    <color name="white">#FFFFFF</color>
 </resources>

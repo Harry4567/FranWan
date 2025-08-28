@@ -1,3 +1,83 @@
 <resources>
+    <!-- Nom de l'application -->
     <string name="app_name">FranWan</string>
+    <string name="app_tagline">Gérez votre emploi du temps en toute simplicité</string>
+    
+    <!-- Écran de connexion -->
+    <string name="login_title">Connexion</string>
+    <string name="email_hint">Adresse email</string>
+    <string name="password_hint">Mot de passe</string>
+    <string name="login_button">Se connecter</string>
+    <string name="register_link">Pas de compte ? Créez en un ici</string>
+    <string name="guest_button">Continuer en tant qu\'invité</string>
+    <string name="timeout_help">En cas d\'erreur TimeOut, veuillez attendre 30 secondes/1 minute puis réessayez</string>
+    
+    <!-- Écran principal -->
+    <string name="next_course_title">Prochain Cours</string>
+    <string name="no_course_upcoming">Aucun cours à venir</string>
+    <string name="simulate_notification">Simuler Notification</string>
+    
+    <!-- Actions rapides -->
+    <string name="quick_actions_title">Actions Rapides</string>
+    <string name="manage_schedule">Gérer EDT</string>
+    <string name="daily_changes">Modifications</string>
+    <string name="import_pdf">Importer PDF</string>
+    <string name="bulk_delete">Supprimer</string>
+    
+    <!-- Configuration des rappels -->
+    <string name="reminder_config_title">Configuration des Rappels</string>
+    <string name="daily_reminder_time">Heure Rappel</string>
+    <string name="reminder_delay">Délai: 5 min</string>
+    <string name="course_days">Jours de cours</string>
+    
+    <!-- Sélecteur de semaine -->
+    <string name="week_1_active">Semaine 1 active</string>
+    <string name="week_1">Semaine 1</string>
+    <string name="week_2">Semaine 2</string>
+    
+    <!-- Boutons supplémentaires -->
+    <string name="vacation_pause_disabled">Pause Vacances: Désactivée</string>
+    <string name="vacation_pause_enabled">Pause Vacances: Activée</string>
+    <string name="check_battery_optimization">Vérifier Optimisation Batterie</string>
+    
+    <!-- Emploi du temps -->
+    <string name="today_schedule_title">Emploi du Temps - Aujourd\'hui</string>
+    <string name="no_class_today">Pas de cours prévu pour aujourd\'hui</string>
+    
+    <!-- Messages d'erreur -->
+    <string name="error_generic">Une erreur s\'est produite</string>
+    <string name="error_network">Erreur de connexion réseau</string>
+    <string name="error_timeout">Délai d\'attente dépassé</string>
+    
+    <!-- Messages de succès -->
+    <string name="success_import">Import réussi</string>
+    <string name="success_save">Sauvegarde réussie</string>
+    <string name="success_delete">Suppression réussie</string>
+    
+    <!-- Confirmations -->
+    <string name="confirm_delete">Êtes-vous sûr de vouloir supprimer ?</string>
+    <string name="confirm_import">Voulez-vous importer ce fichier ?</string>
+    
+    <!-- Paramètres -->
+    <string name="settings">Paramètres</string>
+    <string name="notifications">Notifications</string>
+    <string name="appearance">Apparence</string>
+    <string name="about">À propos</string>
+    
+    <!-- Jours de la semaine -->
+    <string name="monday">Lundi</string>
+    <string name="tuesday">Mardi</string>
+    <string name="wednesday">Mercredi</string>
+    <string name="thursday">Jeudi</string>
+    <string name="friday">Vendredi</string>
+    <string name="saturday">Samedi</string>
+    <string name="sunday">Dimanche</string>
+    
+    <!-- Format d'heure -->
+    <string name="time_format_24h">HH:mm</string>
+    <string name="time_format_12h">hh:mm a</string>
+    
+    <!-- Version -->
+    <string name="version_format">Version: %s</string>
+    <string name="user_format">Utilisateur: %s</string>
 </resources>

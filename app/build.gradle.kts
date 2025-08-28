@@ -11,15 +11,15 @@ android {
         applicationId = "com.example.franwan"
         minSdk = 24
         targetSdk = 35
-        versionCode = 4
-        versionName = "1.04"
+        versionCode = 5
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         
         // Expose API base URL from environment or gradle.properties; avoid relying on local.properties
         val apiBaseUrl = System.getenv("API_BASE_URL")
             ?: (project.findProperty("API_BASE_URL") as String?)
-            ?: "https://api.franwan.rf.gd/api/"
+            ?: "https://franwan.alwaysdata.net/api/"
         buildConfigField("String", "API_BASE_URL", "\"$apiBaseUrl\"")
     }
 

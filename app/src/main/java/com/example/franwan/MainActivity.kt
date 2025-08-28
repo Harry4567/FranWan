@@ -84,7 +84,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var bulkDeleteButton: Button // NOUVEAU
     
     // Sélecteur de semaine
-    private lateinit var weekSelectorLayout: LinearLayout
     private lateinit var week1Button: Button
     private lateinit var week2Button: Button
     private lateinit var currentWeekIndicator: TextView
@@ -193,7 +192,7 @@ class MainActivity : AppCompatActivity() {
         bulkDeleteButton = findViewById(R.id.bulkDeleteButton) // NOUVEAU
         
         // Initialiser le sélecteur de semaine
-        weekSelectorLayout = findViewById(R.id.weekSelectorLayout)
+        // weekSelectorLayout a été supprimé du nouveau design
         week1Button = findViewById(R.id.week1Button)
         week2Button = findViewById(R.id.week2Button)
         currentWeekIndicator = findViewById(R.id.currentWeekIndicator)
@@ -1054,7 +1053,9 @@ class MainActivity : AppCompatActivity() {
     ) : RecyclerView.Adapter<ClassAdapter.ClassViewHolder>() {
 
         class ClassViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            val classItemText: TextView = itemView.findViewById(R.id.classItemText)
+            val classNameText: TextView = itemView.findViewById(R.id.classNameText)
+            val classTimeText: TextView = itemView.findViewById(R.id.classTimeText)
+            val classRoomText: TextView = itemView.findViewById(R.id.classRoomText)
             val deleteButton: ImageButton = itemView.findViewById(R.id.deleteClassButton)
         }
 
@@ -1065,12 +1066,17 @@ class MainActivity : AppCompatActivity() {
 
         override fun onBindViewHolder(holder: ClassViewHolder, position: Int) {
             val currentItem = classList[position]
-            holder.classItemText.text = "${currentItem.time} - ${currentItem.course} (Salle: ${currentItem.room})"
+            holder.classNameText.text = currentItem.course
+            holder.classTimeText.text = currentItem.time
+            holder.classRoomText.text = "Salle ${currentItem.room}"
 
             if (showDeleteButton) {
                 holder.deleteButton.visibility = View.VISIBLE
                 holder.deleteButton.setOnClickListener {
-                    onDeleteClick(holder.adapterPosition, currentItem)
+                    val position = holder.bindingAdapterPosition
+                    if (position != RecyclerView.NO_POSITION) {
+                        onDeleteClick(position, currentItem)
+                    }
                 }
             } else {
                 holder.deleteButton.visibility = View.GONE
@@ -1089,7 +1095,7 @@ class MainActivity : AppCompatActivity() {
         RecyclerView.Adapter<DailyChangesAdapter.ChangeViewHolder>() {
 
         class ChangeViewHolder(itemView: View) : RecyclerView.ViewHolder(itemView) {
-            val changeItemText: TextView = itemView.findViewById(R.id.classItemText)
+            val changeItemText: TextView = itemView.findViewById(R.id.classNameText)
         }
 
         override fun onCreateViewHolder(parent: ViewGroup, viewType: Int): ChangeViewHolder {
@@ -1116,7 +1122,7 @@ class MainActivity : AppCompatActivity() {
             }
             try {
                 holder.changeItemText.setTextColor(
-                    ContextCompat.getColor(holder.itemView.context, R.color.colorPrimaryDark)
+                    ContextCompat.getColor(holder.itemView.context, R.color.text_primary)
                 )
             } catch (e: Exception) {
                 holder.changeItemText.setTextColor(Color.parseColor("#A07740"))

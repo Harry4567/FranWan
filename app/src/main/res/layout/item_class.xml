@@ -5,35 +5,100 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="8dp"
-    app:cardCornerRadius="10dp"
-    app:cardElevation="3dp"
-    app:cardBackgroundColor="#ECF0F1">
+    app:cardCornerRadius="12dp"
+    app:cardElevation="2dp"
+    app:cardBackgroundColor="@color/surface"
+    app:strokeColor="@color/primary_light"
+    app:strokeWidth="1dp">
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal"
-        android:padding="15dp"
+        android:padding="16dp"
         android:gravity="center_vertical">
 
-        <TextView
-            android:id="@+id/classItemText"
+        <!-- Indicateur de temps -->
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:layout_marginEnd="16dp"
+            android:minWidth="60dp">
+
+            <TextView
+                android:id="@+id/classTimeText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="09:00"
+                android:textSize="18sp"
+                android:textStyle="bold"
+                android:textColor="@color/primary"
+                android:gravity="center" />
+
+            <TextView
+                android:id="@+id/classDurationText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="1h30"
+                android:textSize="12sp"
+                android:textColor="@color/text_tertiary"
+                android:gravity="center" />
+        </LinearLayout>
+
+        <!-- Séparateur vertical -->
+        <View
+            android:layout_width="1dp"
+            android:layout_height="40dp"
+            android:background="@color/primary_light"
+            android:layout_marginEnd="16dp" />
+
+        <!-- Informations du cours -->
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="09:00 - Maths (Salle: A101)"
-            android:textSize="16sp"
-            android:textColor="#34495E"/>
+            android:orientation="vertical">
 
+            <TextView
+                android:id="@+id/classNameText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Mathématiques"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@color/text_primary"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/classRoomText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Salle A101"
+                android:textSize="14sp"
+                android:textColor="@color/text_secondary"
+                android:layout_marginBottom="4dp" />
+
+            <TextView
+                android:id="@+id/classTeacherText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Prof. Dupont"
+                android:textSize="12sp"
+                android:textColor="@color/text_tertiary" />
+        </LinearLayout>
+
+        <!-- Bouton de suppression -->
         <ImageButton
             android:id="@+id/deleteClassButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="32dp"
+            android:layout_height="32dp"
             android:src="@android:drawable/ic_menu_close_clear_cancel"
             android:background="?attr/selectableItemBackgroundBorderless"
-            android:tint="#E74C3C"
+            android:tint="@color/error"
             android:visibility="gone"
-            android:contentDescription="Supprimer le cours"/>
-
+            android:contentDescription="Supprimer le cours"
+            android:padding="4dp" />
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>
