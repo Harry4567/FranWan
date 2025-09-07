@@ -562,24 +562,36 @@ class MainActivity : AppCompatActivity() {
         // Charger la semaine active
         currentWeek = sharedPreferences.getInt("currentWeek", 1)
         
-        // Charger l'ancien format pour la compatibilité
-        val scheduleJson = sharedPreferences.getString("classSchedule", null)
-        if (scheduleJson != null) {
-            try {
-                val type = object : TypeToken<MutableList<ClassItem>>() {}.type
-                val oldSchedule: MutableList<ClassItem>? = gson.fromJson(scheduleJson, type)
-                // Migrer les anciens cours vers la semaine 1
-                if (oldSchedule != null && oldSchedule.isNotEmpty()) {
-                    val migratedCourses = oldSchedule.map { course -> 
-                        course.copy(week = 1) 
+        // Charger l'ancien format pour la compatibilité (ne migrer qu'une fois)
+        val migrationDone = sharedPreferences.getBoolean("migrationDoneV2", false)
+        if (!migrationDone) {
+            val scheduleJson = sharedPreferences.getString("classSchedule", null)
+            if (scheduleJson != null) {
+                try {
+                    val type = object : TypeToken<MutableList<ClassItem>>() {}.type
+                    val oldSchedule: MutableList<ClassItem>? = gson.fromJson(scheduleJson, type)
+                    // Migrer les anciens cours vers la semaine 1
+                    if (oldSchedule != null && oldSchedule.isNotEmpty()) {
+                        val migratedCourses = oldSchedule.map { course ->
+                            course.copy(week = 1)
+                        }
+                        week1Schedule.addAll(migratedCourses)
+                        // Supprimer l'ancien format et marquer migration OK
+                        sharedPreferences.edit()
+                            .remove("classSchedule")
+                            .putString("week1Schedule", gson.toJson(week1Schedule))
+                            .putBoolean("migrationDoneV2", true)
+                            .apply()
+                        Log.d("MainActivity", "Migration de ${migratedCourses.size} cours vers la semaine 1 (une seule fois)")
+                    } else {
+                        sharedPreferences.edit().putBoolean("migrationDoneV2", true).apply()
                     }
-                    week1Schedule.addAll(migratedCourses)
-                    // Supprimer l'ancien format
-                    sharedPreferences.edit().remove("classSchedule").apply()
-                    Log.d("MainActivity", "Migration de ${migratedCourses.size} cours vers la semaine 1")
+                } catch (e: Exception) {
+                    Log.e("MainActivity", "Erreur lors de la migration des anciens cours", e)
+                    sharedPreferences.edit().putBoolean("migrationDoneV2", true).apply()
                 }
-            } catch (e: Exception) {
-                Log.e("MainActivity", "Erreur lors de la migration des anciens cours", e)
+            } else {
+                sharedPreferences.edit().putBoolean("migrationDoneV2", true).apply()
             }
         }
         
@@ -666,7 +678,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun saveData() {
         val editor = sharedPreferences.edit()
-        editor.putString("classSchedule", gson.toJson(schedule))
         editor.putString("dailyClassChanges", gson.toJson(dailyChanges))
         editor.putStringSet("courseDays", selectedCourseDays)
         // Sauvegarder l'état de la pause vacances
@@ -848,7 +859,12 @@ class MainActivity : AppCompatActivity() {
                 .setTitle("Supprimer un cours")
                 .setMessage("Voulez-vous vraiment supprimer ce cours ?")
                 .setPositiveButton("Supprimer") { _, _ ->
-                    schedule.removeAt(position)
+                    val removed = schedule.removeAt(position)
+                    // Supprimer aussi dans la liste de la semaine active
+                    when (currentWeek) {
+                        1 -> week1Schedule.remove(removed)
+                        2 -> week2Schedule.remove(removed)
+                    }
                     saveData()
                     updateTodayScheduleDisplay()
                     annualScheduleAdapterInstance?.updateData(schedule.toMutableList())
@@ -882,6 +898,11 @@ class MainActivity : AppCompatActivity() {
             if (day.isNotEmpty() && time.isNotEmpty() && course.isNotEmpty() && room.isNotEmpty()) {
                 val newClass = ClassItem(day, time, course, room)
                 schedule.add(newClass)
+                // Ajouter aussi dans la liste de la semaine active
+                when (currentWeek) {
+                    1 -> week1Schedule.add(newClass)
+                    2 -> week2Schedule.add(newClass)
+                }
                 saveData()
                 updateTodayScheduleDisplay()
                 annualScheduleAdapterInstance?.updateData(schedule.toMutableList().apply {

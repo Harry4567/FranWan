@@ -36,15 +36,6 @@
                 android:textStyle="bold"
                 android:textColor="@color/primary"
                 android:gravity="center" />
-
-            <TextView
-                android:id="@+id/classDurationText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="1h30"
-                android:textSize="12sp"
-                android:textColor="@color/text_tertiary"
-                android:gravity="center" />
         </LinearLayout>
 
         <!-- Séparateur vertical -->
@@ -80,13 +71,7 @@
                 android:textColor="@color/text_secondary"
                 android:layout_marginBottom="4dp" />
 
-            <TextView
-                android:id="@+id/classTeacherText"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="Prof. Dupont"
-                android:textSize="12sp"
-                android:textColor="@color/text_tertiary" />
+            
         </LinearLayout>
 
         <!-- Bouton de suppression -->
